@@ -84,5 +84,23 @@
 
  function checkData(x){if(!x||x.version!==1||!Array.isArray(x.members)||x.members.length>100||!Array.isArray(x.users)||x.users.length>500||!x.months||typeof x.months!=='object')throw Error('このアプリで保存したデータを選んでください。');const ids=new Set();for(const p of x.members){if(typeof p.id!=='string'||!/^[\w-]+$/.test(p.id)||ids.has(p.id)||typeof p.name!=='string'||!Array.isArray(p.weekdays)||!Number.isFinite(p.nightMax)||!Number.isFinite(p.target))throw Error('職員情報の形式が正しくありません。');ids.add(p.id);}for(const [m,v] of Object.entries(x.months)){if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(m)||!v.rules||!v.requests||!v.schedule||!v.locks||!v.daily||!v.previous||!v.targets)throw Error('月の情報が正しくありません。');if(v.meetings!==undefined&&(!Array.isArray(v.meetings)||v.meetings.length>31||new Set(v.meetings).size!==v.meetings.length||v.meetings.some(d=>!Number.isInteger(d)||d<1||d>days(m))))throw Error('会議日の情報が正しくありません。');for(const field of ['conditionPrompt','appliedConditionPrompt'])if(v[field]!==undefined&&(typeof v[field]!=='string'||v[field].length>20000))throw Error('条件の文章は20,000文字以内で保存してください。');for(const c of Object.values(v.schedule))if(c&&!shifts[c])throw Error('未対応の勤務記号です。');for(const c of Object.values(v.requests))if(!['E','F'].includes(c))throw Error('希望休の情報が正しくありません。');for(const k of ['B','C','D','maxRun','off'])if(!Number.isFinite(v.rules[k])||v.rules[k]<0||v.rules[k]>100)throw Error('配置条件の数値が正しくありません。');}return x;}
  function dailyCounts(state,m){const mo=month(state,m);return Array.from({length:days(m)},(_,i)=>{const d=i+1,counts=Object.fromEntries([...Object.keys(shifts),'blank'].map(c=>[c,0]));for(const p of state.members){if(!active(p,m,d))continue;const c=mo.schedule[key(p.id,d)]||'blank';if(Object.hasOwn(counts,c))counts[c]++;}return {day:d,counts};});}
- root.ShiftEngine={meetingDays,meetingConflicts,annualPaidLeave,shifts,dailyCounts,equivalentCodes,equivalentTenths,equivalentStatus,dailyEquivalent,copy,days,iso,weekday,prevMonth,key,active,works,fresh,month,prior,target,validate,generate,checkData};if(typeof module!=='undefined')module.exports=root.ShiftEngine;
+ function memberRemovalSummary(state,id){
+  const person=state.members.find(p=>p.id===id);if(!person)return null;
+  const prefix=id+':',result={person,months:0,requests:0,schedule:0,locks:0,settings:0};
+  for(const record of Object.values(state.months)){
+   let touched=false;
+   for(const field of ['requests','schedule','locks']){const keys=Object.keys(record[field]||{}).filter(k=>k.startsWith(prefix));result[field]+=field==='locks'?keys.filter(k=>record[field][k]).length:keys.length;if(keys.length)touched=true;}
+   for(const field of ['previous','targets'])if(Object.hasOwn(record[field]||{},id)){result.settings++;touched=true;}
+   if(touched)result.months++;
+  }return result;
+ }
+ function removeMember(state,id){
+  const index=state.members.findIndex(p=>p.id===id);if(index<0)return false;
+  const prefix=id+':';state.members.splice(index,1);
+  for(const record of Object.values(state.months)){
+   for(const field of ['requests','schedule','locks'])for(const k of Object.keys(record[field]||{}))if(k.startsWith(prefix))delete record[field][k];
+   for(const field of ['previous','targets'])if(record[field])delete record[field][id];
+  }return true;
+ }
+ root.ShiftEngine={memberRemovalSummary,removeMember,meetingDays,meetingConflicts,annualPaidLeave,shifts,dailyCounts,equivalentCodes,equivalentTenths,equivalentStatus,dailyEquivalent,copy,days,iso,weekday,prevMonth,key,active,works,fresh,month,prior,target,validate,generate,checkData};if(typeof module!=='undefined')module.exports=root.ShiftEngine;
 })(typeof window!=='undefined'?window:globalThis);
