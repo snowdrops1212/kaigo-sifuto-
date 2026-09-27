@@ -28,3 +28,23 @@ el('#request-date').value='2027-01-01';submit();assert.equal(run('current'),'202
 el('#request-date').value='2026-02-30';submit();assert.equal(run('current'),'2026-12');
 run("tab='conditions';render()");assert(el('#content').innerHTML.includes('全員の希望休一覧'));assert.equal((el('#content').innerHTML.match(/id="request-form"/g)||[]).length,1);
 console.log('PASS: form on both schedule states, cross-month Nov/Dec registration, date restrictions removed, invalid date/tenure, deduplication, shared data and fixed shifts preserved');
+
+const ruleInput={dataset:{rule:'B'},value:'3',checkValidity(){return true;},reportValidity(){}};
+const targetInput={dataset:{target:'s1'},value:'160',checkValidity(){return true;},reportValidity(){}};
+const previousInput={dataset:{previous:'s1'},value:'D'};
+const dailyInput={dataset:{daily:'4',kind:'C'},value:'4',checkValidity(){return true;},reportValidity(){}};
+document.querySelectorAll=s=>({'[data-rule]':[ruleInput],'[data-target]':[targetInput],'[data-previous]':[previousInput],'[data-daily]':[dailyInput]}[s]||[]);
+run("tab='members';render()");
+let membersHTML=el('#content').innerHTML;
+assert(membersHTML.startsWith('<div class="panel" id="monthly-conditions">'));
+assert(membersHTML.indexOf('今月の作成条件')<membersHTML.indexOf('シフトを組む条件・プロンプト'));
+assert.equal((membersHTML.match(/id="generate"/g)||[]).length,1);
+assert.equal(el('#generate').onclick,run('startGenerate'));
+ruleInput.onchange();targetInput.onchange();previousInput.onchange();dailyInput.onchange();
+assert.equal(run('mo().rules.B'),3);assert.equal(run('mo().targets.s1'),160);assert.equal(run('mo().previous.s1'),'D');assert.equal(run('mo().daily[4].C'),4);
+run("tab='conditions';render()");
+assert(el('#content').innerHTML.includes('data-rule="B" min="0" max="31" value="3"'));
+run("tab='members';current='2027-01';render()");
+assert.equal(run('mo().rules.B'),2);
+run("current='2026-12';render()");assert.equal(run('mo().rules.B'),3);
+console.log('PASS: monthly conditions at top of staff page, shared rules/targets/prior/daily controls, generation binding and month isolation');
