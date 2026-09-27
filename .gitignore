@@ -1,0 +1,13 @@
+# Local data and credentials must stay outside the repository
+.env
+.env.*
+!.env.example
+.openai/
+.sites-runtime/
+node_modules/
+*.log
+*.json
+*.csv
+*.xls
+*.xlsx
+*.tar.gz
