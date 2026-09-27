@@ -58,15 +58,18 @@ console.log('PASS: form on both schedule states, cross-month Nov/Dec registratio
 const ruleInput={dataset:{rule:'B'},value:'3',checkValidity(){return true;},reportValidity(){}};
 const targetInput={dataset:{target:'s1'},value:'160',checkValidity(){return true;},reportValidity(){}};
 const previousInput={dataset:{previous:'s1'},value:'D'};
-const dailyInput={dataset:{daily:'4',kind:'C'},value:'4',checkValidity(){return true;},reportValidity(){}};
-document.querySelectorAll=s=>({'[data-rule]':[ruleInput],'[data-target]':[targetInput],'[data-previous]':[previousInput],'[data-daily]':[dailyInput]}[s]||[]);
+run("mo().daily[4]={C:4};state.users=[{id:'u1',name:'利用者テスト',type:'通い',weekdays:[1,2],start:'',end:''}]");
+const preservedHiddenData=run('JSON.stringify({users:state.users,daily:mo().daily})');
+document.querySelectorAll=s=>({'[data-rule]':[ruleInput],'[data-target]':[targetInput],'[data-previous]':[previousInput]}[s]||[]);
 run("tab='members';render()");
 let membersHTML=el('#content').innerHTML;
 assert(membersHTML.startsWith('<div class="panel" id="monthly-conditions">'));
 assert(membersHTML.indexOf('今月の作成条件')<membersHTML.indexOf('シフトを組む条件・プロンプト'));
 assert.equal((membersHTML.match(/id="generate"/g)||[]).length,1);
 assert.equal(el('#generate').onclick,run('startGenerate'));
-ruleInput.onchange();targetInput.onchange();previousInput.onchange();dailyInput.onchange();
+assert(!membersHTML.includes('id="add-user"'));assert(!membersHTML.includes('data-user='));assert(!membersHTML.includes('data-daily='));assert(!membersHTML.includes('class="coverage"'));assert(!membersHTML.includes('日ごとの利用予定・必要人数を変更する'));assert(!membersHTML.includes('class="two-col"'));assert(membersHTML.includes('id="add-member"'));assert(membersHTML.includes('職員ごとの今月の時間・前月末の勤務'));
+assert.equal(run('JSON.stringify({users:state.users,daily:mo().daily})'),preservedHiddenData);
+ruleInput.onchange();targetInput.onchange();previousInput.onchange();
 assert.equal(run('mo().rules.B'),3);assert.equal(run('mo().targets.s1'),160);assert.equal(run('mo().previous.s1'),'D');assert.equal(run('mo().daily[4].C'),4);
 const retainedRequests=run('JSON.stringify(mo().requests)'),retainedSchedule=run('JSON.stringify(mo().schedule)');
 el('#condition-to-month').onclick();assert.equal(run('tab'),'members');assert.equal(el('#monthly-conditions').scrolled,true);
@@ -76,7 +79,7 @@ assert(el('#content').innerHTML.includes('data-rule="B" min="0" max="31" value="
 run("tab='members';current='2027-01';render()");
 assert.equal(run('mo().rules.B'),2);
 run("current='2026-12';render()");assert.equal(run('mo().rules.B'),3);
-console.log('PASS: monthly conditions at top of staff page, rules/targets/prior/daily controls, generation binding, month isolation and removal of old page without data loss');
+console.log('PASS: monthly conditions at top of staff page, rules/targets/prior controls and preserved hidden daily/user data, generation binding, month isolation and removal of old page without data loss');
 
 const editor=el('#editor');
 editor.showModal=function(){this.open=true;};editor.close=function(){this.open=false;};
@@ -143,3 +146,28 @@ assert.equal(run('JSON.stringify(state)'),viewState);assert.equal(run('undo.leng
 run("scheduleExpanded=true;tab='members';render()");assert.equal(run('scheduleExpanded'),false);
 run("tab='schedule';render()");
 console.log('PASS: height-only scaling, horizontal scroll retained, expanded/zoom/fit controls and data/undo preservation');
+
+run("state=E.fresh();current='2026-10';tab='schedule';requestPerson='s3';requestKind='E';undo=[];redo=[];render()");
+assert(run('requestSummary()').includes('この月の希望休・有給はまだ登録されていません。'));
+for(const date of ['2026-10-20','2026-10-03']){el('#request-date').value=date;submit();}
+el('#request-kind').onchange({target:{value:'F'}});el('#request-date').value='2026-10-07';submit();
+let summary=run('requestSummary()');
+assert(summary.includes('2026年10月の希望一覧'));assert(summary.includes('1人・3日分（延べ）'));
+assert(summary.includes('data-summary-person="s3"'));assert(!summary.includes('data-summary-person="s1"'));
+assert(summary.indexOf('3日（土）')<summary.indexOf('20日（火）'));
+assert(summary.includes('class="request-summary-date paid">7日（水）'));
+assert(el('#content').innerHTML.indexOf('id="request-form"')<el('#content').innerHTML.indexOf('id="request-summary"'));
+run("mo().schedule['s4:5']='F';mo().generated=true;state.members[2].name='<img src=x onerror=alert(1)>';render()");
+summary=run('requestSummary()');assert(!summary.includes('data-summary-person="s4"'));
+assert(summary.includes('&lt;img src=x onerror=alert(1)&gt;'));assert(!summary.includes('<img'));
+const beforeSummary=run('JSON.stringify(state)'),beforeSummaryUndo=run('undo.length');run('requestSummary()');
+assert.equal(run('JSON.stringify(state)'),beforeSummary);assert.equal(run('undo.length'),beforeSummaryUndo);
+el('#request-date').value='2026-11-11';submit();
+summary=run('requestSummary()');assert(summary.includes('2026年11月の希望一覧'));assert(summary.includes('1人・1日分（延べ）'));assert(summary.includes('11日（水）'));assert(!summary.includes('20日（火）'));
+el('#planning-prev-month').onclick();assert(run('requestSummary()').includes('1人・3日分（延べ）'));
+run("requestKind='F'");el('#request-date').value='2026-10-03';submit();
+summary=run('requestSummary()');assert(summary.includes('class="request-summary-date paid">3日（土）'));assert(!summary.includes('class="request-summary-date off">3日（土）'));
+run('revert(false)');assert(run('requestSummary()').includes('class="request-summary-date off">3日（土）'));
+run('revert(true)');assert(run('requestSummary()').includes('class="request-summary-date paid">3日（土）'));
+run('state=JSON.parse(JSON.stringify(state));render()');assert(run('requestSummary()').includes('1人・3日分（延べ）'));
+console.log('PASS: compact request summary below form, empty state, dates sorted with weekdays, off/paid separation, month isolation, live registration, undo/redo, escaping and saved data');
