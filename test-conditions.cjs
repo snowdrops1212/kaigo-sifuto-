@@ -11,3 +11,10 @@ m.conditionPrompt=text;m.appliedConditionPrompt=text;
 assert.deepEqual(E.checkData(E.copy(state)),state);
 for(const bad of [{},'x'.repeat(20001)]){m.conditionPrompt=bad;assert.throws(()=>E.checkData(E.copy(state)),/条件の文章/);}
 console.log('PASS: condition template, full-width input, strict numbers/units/duplicates, reference isolation, JSON roundtrip and validation');
+assert(text.includes('正社員は月176時間以上'));
+assert(text.includes('D → d → Eのセット内のEとは別に、月9日のE'));
+assert(text.includes('自動割当と充足判定は保留'));
+assert.equal(P.withFacilityRules(text),text);
+const custom='独自の条件メモ';assert(P.withFacilityRules(custom).startsWith(custom));assert(P.withFacilityRules(custom).includes('176時間'));
+assert.equal(P.withFacilityRules('x'.repeat(19999)).length,19999,'long existing notes must not be truncated or made unloadable');
+console.log('PASS: full-time 176-hour and separate nine-day conditions documented without silently enabling incompatible allocation rules');

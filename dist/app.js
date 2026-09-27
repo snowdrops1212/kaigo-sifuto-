@@ -1,7 +1,7 @@
 'use strict';
 const E=ShiftEngine,$=s=>document.querySelector(s),content=$('#content'),dialog=$('#editor');
 let state=E.fresh(),current='2026-10',tab='schedule',undo=[],redo=[],dirty=false;
-let requestPerson='',requestKind='E',requestDate='';
+let requestPerson='',requestKind='E',requestDate='',meetingDate='';
 let scheduleFit=true,scheduleExpanded=false,scheduleResizeObserver;
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const mo=()=>E.month(state,current),n=()=>E.days(current),k=E.key,chip=c=>E.shifts[c]?.cls||'blank';
@@ -31,11 +31,11 @@ function offsetMonth(value,delta){if(!validMonth(value))return '';const [y,m]=va
 function normalizeRequestDate(value){const match=String(value).trim().normalize('NFKC').match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);return match?match[1]+'-'+match[2].padStart(2,'0')+'-'+match[3].padStart(2,'0'):'';}
 function validRequestDate(value){return /^\d{4}-\d{2}-\d{2}$/.test(value)&&validMonth(value.slice(0,7))&&Number(value.slice(8))>=1&&Number(value.slice(8))<=E.days(value.slice(0,7));}
 function switchPlanningMonth(value){if(!validMonth(value)){$('#month').value=current;return;}current=value;$('#month').value=current;render();}
-let requestCalendarMonth='';
-function openRequestCalendar(){const date=normalizeRequestDate($('#request-date').value);requestCalendarMonth=validRequestDate(date)?date.slice(0,7):current;drawRequestCalendar();dialog.showModal();}
+let requestCalendarMonth='',calendarTarget='request';
+function openRequestCalendar(target='request'){calendarTarget=target;const date=normalizeRequestDate($(target==='meeting'?'#meeting-date':'#request-date').value);requestCalendarMonth=validRequestDate(date)?date.slice(0,7):current;drawRequestCalendar();dialog.showModal();}
 function drawRequestCalendar(focusId){
- const month=requestCalendarMonth,[year,monthNumber]=month.split('-').map(Number),selected=normalizeRequestDate($('#request-date').value),start=E.weekday(month,1);
- dialog.innerHTML='<div class="dialog-head"><h2 id="request-calendar-title">希望日を選択</h2><button type="button" id="close-request-calendar" aria-label="カレンダーを閉じる">×</button></div>'+
+ const month=requestCalendarMonth,[year,monthNumber]=month.split('-').map(Number),selected=normalizeRequestDate($(calendarTarget==='meeting'?'#meeting-date':'#request-date').value),start=E.weekday(month,1);
+ dialog.innerHTML='<div class="dialog-head"><h2 id="request-calendar-title">'+(calendarTarget==='meeting'?'会議日を選択':'希望日を選択')+'</h2><button type="button" id="close-request-calendar" aria-label="カレンダーを閉じる">×</button></div>'+
  '<div class="date-calendar-nav"><button type="button" id="request-prev-month" '+(offsetMonth(month,-1)?'':'disabled')+'>‹ 前月</button><span id="request-calendar-heading" aria-live="polite">'+year+'年'+monthNumber+'月</span><button type="button" id="request-next-month" '+(offsetMonth(month,1)?'':'disabled')+'>翌月 ›</button></div>'+
  '<div class="date-calendar-selectors"><label class="field">年<input id="request-calendar-year" type="number" min="100" max="9999" step="1" value="'+year+'"></label><label class="field">月<select id="request-calendar-month">'+options(Array.from({length:12},(_,i)=>[String(i+1),(i+1)+'月']),String(monthNumber))+'</select></label></div>'+
  '<div class="request-date-calendar"><div class="cal-week" aria-hidden="true">'+[...'日月火水木金土'].map(w=>'<span>'+w+'</span>').join('')+'</div><div class="cal-days" role="group" aria-label="'+year+'年'+monthNumber+'月の日付">'+
@@ -43,11 +43,40 @@ function drawRequestCalendar(focusId){
  const move=(delta,focus)=>{const target=offsetMonth(requestCalendarMonth,delta);if(target){requestCalendarMonth=target;drawRequestCalendar(focus);}};
  $('#request-prev-month').onclick=()=>move(-1,'#request-prev-month');
  $('#request-next-month').onclick=()=>move(1,'#request-next-month');
- $('#close-request-calendar').onclick=()=>{close();$('#open-request-calendar').focus();};
+ $('#close-request-calendar').onclick=()=>{close();$(calendarTarget==='meeting'?'#open-meeting-calendar':'#open-request-calendar').focus();};
  $('#request-calendar-year').onchange=e=>{const value=e.target.value;if(!/^\d{3,4}$/.test(value)||Number(value)<100||Number(value)>9999){e.target.value=String(year);return toast('年は100〜9999の範囲で入力してください。');}requestCalendarMonth=value.padStart(4,'0')+'-'+String(monthNumber).padStart(2,'0');drawRequestCalendar('#request-calendar-year');};
  $('#request-calendar-month').onchange=e=>{const value=String(year).padStart(4,'0')+'-'+e.target.value.padStart(2,'0');if(validMonth(value)){requestCalendarMonth=value;drawRequestCalendar('#request-calendar-month');}};
- dialog.querySelectorAll('[data-picker-day]').forEach(button=>button.onclick=()=>{requestDate=requestCalendarMonth+'-'+button.dataset.pickerDay.padStart(2,'0');$('#request-date').value=requestDate;close();$('#request-date').focus();});
+ dialog.querySelectorAll('[data-picker-day]').forEach(button=>button.onclick=()=>{const value=requestCalendarMonth+'-'+button.dataset.pickerDay.padStart(2,'0'),field=$(calendarTarget==='meeting'?'#meeting-date':'#request-date');if(calendarTarget==='meeting')meetingDate=value;else requestDate=value;field.value=value;close();field.focus();});
  if(focusId)$(focusId).focus();
+}
+
+function meetingConditionText(){
+ const dates=E.meetingDays(state,current).map(d=>E.iso(current,d)+'（'+'日月火水木金土'[E.weekday(current,d)]+'）');
+ return '【会議日の勤務条件】\n対象月：'+current+'\n会議日：'+(dates.length?dates.join('、'):'未登録')+'\n会議日は職種「管理者」の在籍中の職員全員をB（日勤 8:30〜17:30）にする。\n希望休・有給・固定勤務・勤務不可曜日・夜勤明けと矛盾する場合は、上書きせず作成を停止して調整する。\n会議日は「希望休・有給を登録」の下の会議日欄から変更する。登録内容は自動作成に直接反映される。';
+}
+function meetingControls(){
+ const dates=E.meetingDays(state,current),errors=E.meetingConflicts(state,current);
+ return '<section class="meeting-section" aria-labelledby="meeting-title"><h3 id="meeting-title">会議日を登録</h3><form id="meeting-form" class="meeting-form"><div class="field"><label for="meeting-date">会議日</label><div class="request-date-input"><input id="meeting-date" type="text" inputmode="numeric" autocomplete="off" required placeholder="'+current.replace('-','/')+'/01" value="'+esc(meetingDate)+'" aria-describedby="meeting-help"><button id="open-meeting-calendar" type="button" aria-haspopup="dialog" aria-controls="editor">カレンダー</button></div></div><button class="primary" type="submit">会議日を追加</button></form><p id="meeting-help" class="subtle">会議日は管理者をB勤務にします。日付を選んで追加してください。作成済みのシフトは再作成すると反映されます。</p><div class="meeting-dates" aria-label="'+esc(current)+'の会議日">'+(dates.length?dates.map(day=>'<button type="button" data-remove-meeting="'+day+'" aria-label="'+day+'日の会議日を解除">'+day+'日（'+'日月火水木金土'[E.weekday(current,day)]+'） <span aria-hidden="true">×</span></button>').join(''):'<span class="subtle">この月の会議日は未登録です。</span>')+'</div><p class="subtle">登録した日を押すと解除できます。対象は職種「管理者」の在籍中の職員全員です。</p>'+(errors.length?'<ul class="meeting-errors">'+errors.map(x=>'<li>'+esc(x.text)+'</li>').join('')+'</ul>':'')+'</section>';
+}
+function removeMeetingDay(day){
+ if(!E.meetingDays(state,current).includes(day))return;
+ change(()=>{mo().meetings=E.meetingDays(state,current).filter(d=>d!==day);});
+ toast(day+'日の会議日を解除しました。作成済みシフトは変更していません。');
+}
+function bindMeetingControls(){
+ $('#meeting-date').oninput=e=>{meetingDate=e.target.value;};
+ $('#open-meeting-calendar').onclick=()=>openRequestCalendar('meeting');
+ $('#meeting-form').onsubmit=e=>{
+  e.preventDefault();if(!e.target.reportValidity())return;
+  const date=normalizeRequestDate($('#meeting-date').value);
+  if(!validRequestDate(date))return toast('正しい会議日を入力してください。');
+  const month=date.slice(0,7),day=Number(date.slice(8)),existing=[...(state.months[month]?.meetings||[])];
+  const show=()=>{meetingDate=date;current=month;$('#month').value=current;};
+  if(existing.includes(day)){show();render();return toast('この会議日は登録済みです。');}
+  change(()=>{E.month(state,month).meetings=[...existing,day].sort((a,b)=>a-b);show();});
+  toast(date+'の会議日を登録しました。管理者をB勤務にする条件でシフトを作成します。');
+ };
+ document.querySelectorAll('[data-remove-meeting]').forEach(b=>b.onclick=()=>removeMeetingDay(Number(b.dataset.removeMeeting)));
 }
 
 function requestControls(){
@@ -55,7 +84,8 @@ function requestControls(){
  return '<form class="request-controls" id="request-form"><label class="field">職員<select id="request-person" required>'+options([['','職員を選択'],...state.members.map(p=>[p.id,p.name])],requestPerson)+'</select></label><label class="field">休みの種類<select id="request-kind">'+options([['E','希望休'],['F','有給']],requestKind)+'</select></label><div class="field request-date-field"><label for="request-date">日付</label><div class="request-date-input"><input id="request-date" type="text" inputmode="numeric" autocomplete="off" required placeholder="2026/10/01" aria-describedby="request-date-help" value="'+esc(requestDate)+'"><button id="open-request-calendar" type="button" aria-haspopup="dialog" aria-controls="editor">カレンダー</button></div></div><button id="register-request" type="submit" class="primary">登録</button><p class="desc" id="request-date-help">日付は年/月/日で入力、またはカレンダーから選択できます。前月・翌月、年・月の指定で移動できます。登録すると、その月のシフト画面に切り替わります。</p></form>';
 }
 function bindRequestControls(){
- $('#open-request-calendar').onclick=openRequestCalendar;
+ bindMeetingControls();
+ $('#open-request-calendar').onclick=()=>openRequestCalendar();
  $('#request-person').onchange=e=>{requestPerson=e.target.value;};
  $('#request-date').oninput=e=>{requestDate=e.target.value;};
  $('#request-kind').onchange=e=>{requestKind=e.target.value;render();$('#request-kind').focus({preventScroll:true});};
@@ -79,7 +109,7 @@ function bindMonthlyConditions(){const m=mo();
  document.querySelectorAll('[data-previous]').forEach(i=>i.onchange=()=>change(()=>m.previous[i.dataset.previous]=i.value));
  $('#generate').onclick=startGenerate;
 }
-function startGenerate(){if(mo().conditionPrompt!==undefined&&mo().conditionPrompt!==mo().appliedConditionPrompt){tab='members';render();$('#condition-prompt').focus();toast('変更した条件の反映内容を確認し、「月の作成条件に反映」を押してください。');return;}const conflict=Object.entries(mo().requests).find(([key,c])=>mo().locks[key]&&mo().schedule[key]!==c);if(conflict){const [id,day]=conflict[0].split(':');return toast(`${state.members.find(p=>p.id===id)?.name} ${day}日：希望休と固定勤務が重なっています。先に固定を解除するか、勤務を変更してください。`);}const run=()=>{toast('希望休を確保して、シフトを組んでいます…');const b=$('#generate');if(b){b.disabled=true;b.textContent='作成中…';}setTimeout(()=>{try{change(()=>{E.generate(state,current);tab='schedule';});toast('シフト案を作成しました。要確認の項目を確認してください。');}catch(err){render();toast(err.message);}},60);};if(mo().generated)ask('シフト案を再作成しますか？','希望休と固定したセルを保持して再作成します。固定していない手直しは置き換わります。元に戻すこともできます。',run);else run();}
+function startGenerate(){const meetingErrors=E.meetingConflicts(state,current);if(meetingErrors.length)return toast(meetingErrors[0].text+'。会議日または条件を調整してください。');if(mo().conditionPrompt!==undefined&&mo().conditionPrompt!==mo().appliedConditionPrompt){tab='members';render();$('#condition-prompt').focus();toast('変更した条件の反映内容を確認し、「月の作成条件に反映」を押してください。');return;}const conflict=Object.entries(mo().requests).find(([key,c])=>mo().locks[key]&&mo().schedule[key]!==c);if(conflict){const [id,day]=conflict[0].split(':');return toast(`${state.members.find(p=>p.id===id)?.name} ${day}日：希望休と固定勤務が重なっています。先に固定を解除するか、勤務を変更してください。`);}const run=()=>{toast('希望休を確保して、シフトを組んでいます…');const b=$('#generate');if(b){b.disabled=true;b.textContent='作成中…';}setTimeout(()=>{try{change(()=>{E.generate(state,current);tab='schedule';});toast('シフト案を作成しました。要確認の項目を確認してください。');}catch(err){render();toast(err.message);}},60);};if(mo().generated)ask('シフト案を再作成しますか？','希望休と固定したセルを保持して再作成します。固定していない手直しは置き換わります。元に戻すこともできます。',run);else run();}
 function requestSummary(){
  const requests=mo().requests,days=range();
  const people=state.members.map(p=>({person:p,off:days.filter(d=>requests[k(p.id,d)]==='E'),paid:days.filter(d=>requests[k(p.id,d)]==='F')})).filter(p=>p.off.length||p.paid.length);
@@ -88,7 +118,7 @@ function requestSummary(){
  return '<div class="request-summary-compact" id="request-summary" aria-labelledby="request-summary-title"><div class="request-summary-heading"><h3 id="request-summary-title">'+year+'年'+month+'月の希望一覧</h3><span class="subtle">'+people.length+'人・'+total+'日分（延べ）</span></div>'+
  (people.length?'<ul class="request-summary-list">'+people.map(p=>'<li data-summary-person="'+esc(p.person.id)+'"><strong class="request-summary-name">'+esc(p.person.name)+'</strong><div class="request-summary-kind"><span class="request-summary-label">希望休</span><div class="request-summary-dates" data-summary-kind="E">'+dateTags(p.off,'E')+'</div></div><div class="request-summary-kind"><span class="request-summary-label">有給</span><div class="request-summary-dates" data-summary-kind="F">'+dateTags(p.paid,'F')+'</div></div></li>').join('')+'</ul>':'<p class="request-summary-empty">この月の希望休・有給はまだ登録されていません。</p>')+'</div>';
 }
-function scheduleRequestPanel(){return '<section class="panel" id="schedule-request-panel"><div class="panel-head"><h2>希望休・有給を登録</h2>'+(mo().generated?'':'<div class="toolbar">'+undoBar()+'</div>')+'</div>'+requestControls()+paidYearNote()+'<p class="subtle">作成済みのシフトは自動変更しません。登録後に再作成するか、勤務セルを手動で変更してください。</p>'+requestSummary()+'</section>';}
+function scheduleRequestPanel(){return '<section class="panel" id="schedule-request-panel"><div class="panel-head"><h2>希望休・有給を登録</h2>'+(mo().generated?'':'<div class="toolbar">'+undoBar()+'</div>')+'</div>'+requestControls()+paidYearNote()+'<p class="subtle">作成済みのシフトは自動変更しません。登録後に再作成するか、勤務セルを手動で変更してください。</p>'+requestSummary()+meetingControls()+'</section>';}
 
 function scheduleViewControls(){return '<div class="schedule-view-toolbar"><div class="toolbar"><button type="button" id="schedule-fit" aria-pressed="'+scheduleFit+'">縦を全体表示</button><button type="button" id="schedule-zoom" aria-pressed="'+(!scheduleFit)+'">文字を大きくする</button><button type="button" id="schedule-expand" class="primary" aria-pressed="'+scheduleExpanded+'">'+(scheduleExpanded?'通常画面に戻る':'表を画面いっぱいに表示')+'</button></div><span id="schedule-view-status" class="subtle" role="status">'+(scheduleFit?'全職員と人数集計を縦に表示。日付は横にスクロールできます':'拡大表示：スクロールして編集できます')+'</span></div>';}
 function fitHeightScale(height,tableHeight){if([height,tableHeight].some(v=>!Number.isFinite(v)||v<=0))return 1;return Math.min(1,height/tableHeight);}
@@ -123,19 +153,20 @@ function renderSchedule(){const m=mo();if(!m.generated){content.innerHTML=schedu
  bindRequestControls();$('#to-counts').onclick=()=>$('#daily-counts').scrollIntoView({block:'start',behavior:'smooth'});$('#to-requests').onclick=()=>{$('#schedule-request-panel').scrollIntoView({block:'start',behavior:'smooth'});$('#request-person').focus({preventScroll:true});};
  document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>editCell(b.dataset.edit,+b.dataset.date));document.querySelectorAll('[data-issue]').forEach(b=>b.onclick=()=>{const x=issues[+b.dataset.issue];if(x.id&&x.d)editCell(x.id,x.d);else if(x.d)document.querySelector(`[data-date="${x.d}"]`)?.scrollIntoView({block:'center',inline:'center',behavior:'smooth'});else memberForm(x.id);});$('#generate').onclick=startGenerate;$('#export-csv').onclick=exportCSV;bindScheduleView();
 }
-function editCell(id,d){const p=state.members.find(x=>x.id===id),m=mo(),cell=k(id,d),c=m.schedule[cell]||'';dialog.innerHTML=`<div class="dialog-head"><div><span class="subtle">${current.replace('-','年')}月${d}日（${'日月火水木金土'[E.weekday(current,d)]}）</span><h2>${esc(p.name)}</h2></div><button class="close" aria-label="閉じる">×</button></div>${m.requests[cell]?`<div class="note">この日は${m.requests[cell]==='E'?'希望休':'有給希望'}です。変更した場合は要確認として表示します。</div>`:''}<p class="desc">現在：${c?`${c} ${E.shifts[c].label}`:'未入力'}　変更する勤務を選んでください。</p><div class="choices">${Object.entries(E.shifts).map(([v,s])=>`<button class="choice ${s.cls}" data-choice="${v}"><strong>${v} ${s.label}</strong><small>${s.time||'勤務なし'}</small></button>`).join('')}</div><label><input id="lock-edit" type="checkbox" checked> 変更後のセルを固定する</label><p><label><input id="night-set" type="checkbox" checked> Dを選んだとき、翌日d・翌々日Eも設定</label></p><div class="fields"><label class="field">同じ日の勤務を交換する<select id="swap-person"><option value="">交換相手を選択</option>${options(state.members.filter(x=>x.id!==id&&E.active(x,current,d)).map(x=>[x.id,`${x.name}：${m.schedule[k(x.id,d)]||'未入力'}`]),'')}</select></label><button id="swap">勤務を交換</button></div><div class="dialog-bottom"><button id="unlock">${m.locks[cell]?'固定を解除':'現在の勤務を固定'}</button><button id="empty-cell">空欄にする</button><button class="primary close-action">閉じる</button></div>`;dialog.showModal();dialog.querySelector('.close').onclick=close;dialog.querySelector('.close-action').onclick=close;
+function editCell(id,d){const p=state.members.find(x=>x.id===id),m=mo(),cell=k(id,d),c=m.schedule[cell]||'';dialog.innerHTML=`<div class="dialog-head"><div><span class="subtle">${current.replace('-','年')}月${d}日（${'日月火水木金土'[E.weekday(current,d)]}）</span><h2>${esc(p.name)}</h2></div><button class="close" aria-label="閉じる">×</button></div>${p.role==='管理者'&&E.active(p,current,d)&&E.meetingDays(state,current).includes(d)?'<div class="note">会議日です。管理者はB勤務が必要です。B以外に変更すると要確認として表示します。</div>':''}${m.requests[cell]?`<div class="note">この日は${m.requests[cell]==='E'?'希望休':'有給希望'}です。変更した場合は要確認として表示します。</div>`:''}<p class="desc">現在：${c?`${c} ${E.shifts[c].label}`:'未入力'}　変更する勤務を選んでください。</p><div class="choices">${Object.entries(E.shifts).map(([v,s])=>`<button class="choice ${s.cls}" data-choice="${v}"><strong>${v} ${s.label}</strong><small>${s.time||'勤務なし'}</small></button>`).join('')}</div><label><input id="lock-edit" type="checkbox" checked> 変更後のセルを固定する</label><p><label><input id="night-set" type="checkbox" checked> Dを選んだとき、翌日d・翌々日Eも設定</label></p><div class="fields"><label class="field">同じ日の勤務を交換する<select id="swap-person"><option value="">交換相手を選択</option>${options(state.members.filter(x=>x.id!==id&&E.active(x,current,d)).map(x=>[x.id,`${x.name}：${m.schedule[k(x.id,d)]||'未入力'}`]),'')}</select></label><button id="swap">勤務を交換</button></div><div class="dialog-bottom"><button id="unlock">${m.locks[cell]?'固定を解除':'現在の勤務を固定'}</button><button id="empty-cell">空欄にする</button><button class="primary close-action">閉じる</button></div>`;dialog.showModal();dialog.querySelector('.close').onclick=close;dialog.querySelector('.close-action').onclick=close;
  dialog.querySelectorAll('[data-choice]').forEach(b=>b.onclick=()=>{const v=b.dataset.choice,fix=$('#lock-edit').checked,patches=[[d,v]];if(v==='D'&&$('#night-set').checked){if(d+1<=n())patches.push([d+1,'d']);if(d+2<=n())patches.push([d+2,'E']);}for(const [day,code]of patches){const q=k(id,day);if(day!==d&&((m.locks[q]&&m.schedule[q]!==code)||(m.requests[q]&&m.requests[q]!==code))){toast(`${day}日は固定または希望休があります。先に確認してください。`);return;}}change(()=>{for(const[day,code]of patches){m.schedule[k(id,day)]=code;if(fix)m.locks[k(id,day)]=true;else delete m.locks[k(id,day)];}});close();toast('勤務を変更しました');});
  $('#unlock').onclick=()=>{change(()=>m.locks[cell]?delete m.locks[cell]:m.locks[cell]=true);close();};$('#empty-cell').onclick=()=>{change(()=>{m.schedule[cell]='';m.locks[cell]=true;});close();};$('#swap').onclick=()=>{const other=$('#swap-person').value;if(!other)return toast('交換相手を選んでください');const q=k(other,d);if(m.locks[q])return toast('交換相手の勤務は固定されています。先に解除してください。');change(()=>{[m.schedule[cell],m.schedule[q]]=[m.schedule[q]||'',m.schedule[cell]||''];m.locks[cell]=true;m.locks[q]=true;});close();toast('勤務を交換しました。要確認の項目を確認してください。');};
 }
 
 function conditionPanel(){
- const m=mo();if(m.conditionPrompt===undefined){m.conditionPrompt=ShiftConditions.template(m.rules);m.appliedConditionPrompt=m.conditionPrompt;}
- return '<section class="panel condition-panel"><div class="panel-head"><div><h2>シフトを組む条件・プロンプト</h2><p class="desc">'+esc(current)+' の条件です。画像の規則と現在の作成方法を入れています。</p></div><div class="toolbar">'+undoBar()+'</div></div><div class="note">文章は自由に追記できます。自動反映できるのは先頭の5項目のみです。それ以外の文章はメモとして保存し、自動作成の動作は変わりません。</div><label class="field" for="condition-prompt">条件の文章（この月用）</label><textarea id="condition-prompt" maxlength="20000" spellcheck="false" aria-describedby="condition-help">'+esc(m.conditionPrompt)+'</textarea><p id="condition-help" class="subtle">先頭の「項目名：数値＋人／日」の形式を保って編集してください。内容は「データを保存」のファイルにも含まれます。</p><div id="condition-preview" aria-live="polite"></div><div class="toolbar"><button id="apply-condition-prompt" class="primary">月の作成条件に反映</button><button id="condition-to-month">今月の作成条件を確認</button><button id="condition-copy">前月の文章をコピー</button></div><details class="details"><summary>現在、自動作成で使う設定を確認する</summary><pre class="condition-snapshot">'+esc(conditionSnapshot())+'</pre></details></section>';
+ const m=mo();if(m.conditionPrompt===undefined){m.conditionPrompt=ShiftConditions.withFacilityRules(ShiftConditions.template(m.rules));m.appliedConditionPrompt=m.conditionPrompt;}
+ m.conditionPrompt=ShiftConditions.withFacilityRules(m.conditionPrompt);if(typeof m.appliedConditionPrompt==='string')m.appliedConditionPrompt=ShiftConditions.withFacilityRules(m.appliedConditionPrompt);
+ return '<section class="panel condition-panel"><div class="panel-head"><div><h2>シフトを組む条件・プロンプト</h2><p class="desc">'+esc(current)+' の条件です。画像の規則と現在の作成方法を入れています。</p></div><div class="toolbar">'+undoBar()+'</div></div><div class="note">文章から反映するのは先頭の5項目です。会議日の条件は登録欄から直接反映します。それ以外の自由記述はメモとして保存します。</div><div class="meeting-condition"><label class="field" for="meeting-condition-prompt">会議日の条件（登録欄と自動連携）</label><textarea id="meeting-condition-prompt" readonly rows="6" aria-describedby="meeting-condition-help">'+esc(meetingConditionText())+'</textarea><p id="meeting-condition-help" class="subtle">この条件は自動で適用します。会議日の変更はシフト調整ページの会議日欄で行ってください。</p></div><div class="note"><strong>施設の追加条件：正社員は月176時間以上／夜勤セットのEとは別に月9日のE</strong><p>条件文に追加しています。正社員の区分・勤務時間の数え方の確認が必要なため、この2条件の自動割当・充足判定は保留です。</p></div><label class="field" for="condition-prompt">条件の文章（この月用）</label><textarea id="condition-prompt" maxlength="20000" spellcheck="false" aria-describedby="condition-help">'+esc(m.conditionPrompt)+'</textarea><p id="condition-help" class="subtle">先頭の「項目名：数値＋人／日」の形式を保って編集してください。内容は「データを保存」のファイルにも含まれます。</p><div id="condition-preview" aria-live="polite"></div><div class="toolbar"><button id="apply-condition-prompt" class="primary">月の作成条件に反映</button><button id="condition-to-month">今月の作成条件を確認</button><button id="condition-copy">前月の文章をコピー</button></div><details class="details"><summary>現在、自動作成で使う設定を確認する</summary><pre class="condition-snapshot">'+esc(conditionSnapshot())+'</pre></details></section>';
 }
 function conditionSnapshot(){
  const m=mo(),lines=[current+' の現在の有効設定',ShiftConditions.settings(m.rules),'','職員ごとの条件（夜勤可否が優先。職種のみでは制限しません）'];
  for(const p of state.members)lines.push(p.name+'／'+p.role+'／'+(p.night?'夜勤可・月'+p.nightMax+'回まで':'夜勤不可')+'／勤務曜日：'+p.weekdays.map(w=>'日月火水木金土'[w]).join('・')+'／在籍：'+(p.start||'指定なし')+'〜'+(p.end||'指定なし')+'／今月の目安：'+E.target(p,m,n())+'時間／前月末：'+(E.prior(state,current,p)||'未指定'));
- lines.push('','希望休・有給希望');
+ lines.push('',meetingConditionText(),'','希望休・有給希望');
  for(const p of state.members){const req=range().filter(d=>m.requests[k(p.id,d)]).map(d=>d+'日'+(m.requests[k(p.id,d)]==='E'?'希':'有'));if(req.length)lines.push(p.name+'：'+req.join('、'));}
  lines.push('登録合計：'+Object.keys(m.requests).length+'日分','','固定勤務');
  for(const p of state.members){const fixed=range().filter(d=>m.locks[k(p.id,d)]).map(d=>d+'日'+(m.schedule[k(p.id,d)]||'空欄'));if(fixed.length)lines.push(p.name+'：'+fixed.join('、'));}
