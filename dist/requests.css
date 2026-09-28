@@ -55,3 +55,9 @@ body.schedule-expanded #schedule-viewport{flex:1;min-height:0;height:auto;max-he
 .member-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap}.member-actions button{min-height:44px}button.danger{color:#a32934;border-color:#deb5b9;background:#fff7f7}button.danger:hover{background:#ffe8e9;border-color:#a32934}@media(max-width:480px){.member-card{flex-wrap:wrap}.member-actions{margin-left:auto}}
 
 .personal-conditions{border-top:1px solid var(--line);padding-top:16px}.personal-conditions textarea{width:100%;min-height:100px;font:inherit;resize:vertical}.personal-conditions .toolbar{margin-top:8px}.personal-conditions [role="status"]{background:#f4f7f9;padding:12px;font-size:14px;border-radius:8px}.personal-note{white-space:pre-wrap;overflow-wrap:anywhere;font-family:inherit;font-size:14px;margin:8px 0}.member-note{margin-top:6px;font-size:14px}.member-note summary{cursor:pointer}.member-card>div:first-child{min-width:0;flex:1}
+.paid-person-total{display:flex;flex-direction:column;align-items:flex-end;gap:3px}
+.paid-person-period{font-size:10px;font-weight:400;white-space:nowrap;color:#735a18}
+.is-fit .paid-person-period{display:none}
+.is-fit .annual-paid-badge.paid-status{font-size:10px;white-space:normal}
+.is-fit .annual-paid-badge.paid-status:before,.is-fit .annual-paid-badge.paid-status:after{content:none}
+.request-summary-date.work-request{background:#e1f3ed;color:#16634c;border:1px solid #b4dace}

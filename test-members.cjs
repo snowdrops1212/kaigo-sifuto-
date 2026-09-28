@@ -1,5 +1,6 @@
 const assert=require('node:assert/strict'),E=require('./dist/engine.js');
 const s=E.fresh();
+s.members[0].start='2026-01-01';s.members[9].start='2026-01-01';
 for(const m of ['2026-12','2027-01']){
  const r=E.month(s,m);
  r.requests={'s1:1':'F','s1:2':'E','s10:1':'F'};
@@ -34,7 +35,7 @@ for(const [m,r] of Object.entries(s.months)){
  for(const field of ['rules','daily','meetings','generated','conditionPrompt','appliedConditionPrompt'])assert.deepEqual(r[field],before.months[m][field]);
 }
 assert.deepEqual(E.checkData(JSON.parse(JSON.stringify(s))),s);
-assert.equal(E.annualPaidLeave(s,'2026-12','s1').total,0);assert.deepEqual(E.annualPaidLeave(s,'2026-12','s10'),retainedPaid);
+assert.equal(E.annualPaidLeave(s,'2026-12','s1').total,null);assert.deepEqual(E.annualPaidLeave(s,'2026-12','s10'),retainedPaid);
 assert.equal(E.dailyCounts(s,'2026-12')[2].counts.B,0);assert.equal(E.dailyCounts(s,'2026-12')[2].counts.G,1);
 assert(E.meetingConflicts(s,'2026-12').some(x=>x.text.includes('管理者が未登録')));
 const removedSnapshot=JSON.stringify(s);assert.throws(()=>E.generate(s,'2026-12'),/管理者が未登録/);assert.equal(JSON.stringify(s),removedSnapshot);

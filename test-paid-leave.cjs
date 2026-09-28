@@ -1,18 +1,29 @@
 const assert=require('node:assert/strict'),E=require('./dist/engine.js');
-const s=E.fresh(),id='s3';
-for(const m of ['2026-03','2026-04','2026-12','2027-03','2027-04']){const r=E.month(s,m);r.requests[id+':1']='F';r.schedule[id+':1']='F';r.requests[id+':2']='E';r.schedule[id+':2']='E';}
-E.month(s,'2026-04').requests[id+':3']='F';
-E.month(s,'2026-12').schedule[id+':4']='F';
-let a=E.annualPaidLeave(s,'2026-10',id);
-assert.equal(a.total,5);assert.equal(a.start,'2026-04');assert.equal(a.end,'2027-03');
-assert.equal(E.annualPaidLeave(s,'2027-03',id).total,5);
-assert.equal(E.annualPaidLeave(s,'2027-04',id).total,1);
-assert.equal(E.annualPaidLeave(s,'2026-03',id).total,1);
-assert.equal(E.annualPaidLeave(s,'2026-10','s4').total,0);
-assert.equal(E.annualPaidLeave(s,'2026-10',id,'requests').total,4);
-assert.equal(E.annualPaidLeave(s,'2026-10',id,'schedule').total,4);
-delete s.months['2026-04'].requests[id+':3'];assert.equal(E.annualPaidLeave(s,'2026-10',id).total,4);
+const s=E.fresh(),p=s.members[2],id=p.id;p.start='2025-04-15';
+assert.deepEqual(E.paidLeavePeriod(p,'2026-10-14'),{asOf:'2026-10-14',firstStart:'2025-10-15',start:'2025-10-15',end:'2026-10-14',status:'ready'});
+assert.equal(E.paidLeavePeriod(p,'2026-10-15').start,'2026-10-15');
+assert.equal(E.paidLeavePeriod(p,'2025-10-14').status,'notStarted');
+assert.equal(E.annualPaidLeave(s,'2025-09',id).total,0);
+assert.equal(E.annualPaidLeave(s,'2026-10','s4').total,null);
+assert.equal(E.annualPaidLeave(s,'2026-10','missing').status,'missingMember');
+assert.equal(E.paidLeavePeriod({start:'2025-02-30'},'2026-10-01').status,'invalidStart');
+assert.equal(E.addCalendarMonths('2025-08-31',6),'2026-02-28');
+assert.equal(E.addCalendarMonths('2023-08-31',6),'2024-02-29');
+assert.equal(E.paidLeavePeriod({start:'2023-08-31'},'2025-02-28').start,'2025-02-28');
+assert.equal(E.paidLeavePeriod({start:'2023-08-31'},'2028-02-29').start,'2028-02-29');
+for(const date of ['2025-10-14','2025-10-15','2025-12-31','2026-01-01','2026-10-14','2026-10-15']){
+ const m=date.slice(0,7),k=E.key(id,+date.slice(8)),r=E.month(s,m);r.requests[k]='F';r.schedule[k]='F';
+}
+E.month(s,'2026-03').requests[id+':1']='E';
+E.month(s,'2026-03').requests[id+':2']='W';
+E.month(s,'2026-03').schedule[id+':3']='F';
+let a=E.annualPaidLeave(s,'2026-10-14',id);assert.equal(a.total,5);assert.equal(a.byMonth.length,13);
+assert.equal(E.annualPaidLeave(s,'2026-10-14',id,'requests').total,4);
+assert.equal(E.annualPaidLeave(s,'2026-10-14',id,'schedule').total,5);
+assert.equal(E.annualPaidLeave(s,'2026-10',id).total,1,'displayed month end selects the new cycle');
 const before=JSON.stringify(s);E.annualPaidLeave(s,'2030-10',id);assert.equal(JSON.stringify(s),before);
-assert.deepEqual(E.annualPaidLeave(E.checkData(E.copy(s)),'2026-10',id),E.annualPaidLeave(s,'2026-10',id));
-E.month(s,'2028-02').requests[id+':29']='F';assert.equal(E.annualPaidLeave(s,'2028-02',id).total,2);
-console.log('PASS: April/March boundary, annual sum, normal leave excluded, deduplication, requests/schedule, edits, member separation, leap day and saved-data roundtrip');
+assert.deepEqual(E.annualPaidLeave(E.checkData(E.copy(s)),'2026-10-14',id),a);
+p.end='2026-01-01';assert.equal(E.annualPaidLeave(s,'2026-10-14',id).total,3);p.end='';
+p.start='2025-03-01';assert.equal(E.annualPaidLeave(s,'2026-10',id).total,2,'hire date edits recalculate without deleting entries');
+assert.equal(E.month(s,'2025-10').requests[id+':15'],'F');
+console.log('PASS: individual hire+6 month cycles, exact boundaries, month-end reference, 13 month buckets, leap/month-end clamping, missing hire date, planned deduplication, no mutation and JSON roundtrip');

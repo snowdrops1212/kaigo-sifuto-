@@ -151,7 +151,7 @@ run("tab='schedule';render()");
 console.log('PASS: height-only scaling, horizontal scroll retained, expanded/zoom/fit controls and data/undo preservation');
 
 run("state=E.fresh();current='2026-10';tab='schedule';requestPerson='s3';requestKind='E';undo=[];redo=[];render()");
-assert(run('requestSummary()').includes('この月の希望休・有給はまだ登録されていません。'));
+assert(run('requestSummary()').includes('この月の希望休・有給・出勤希望はまだ登録されていません。'));
 for(const date of ['2026-10-20','2026-10-03']){el('#request-date').value=date;submit();}
 el('#request-kind').onchange({target:{value:'F'}});el('#request-date').value='2026-10-07';submit();
 let summary=run('requestSummary()');
@@ -215,7 +215,7 @@ assert(el('#content').innerHTML.includes('aria-label="管理者（サンプル�
 assert(el('#content').innerHTML.includes('最終勤務日を設定'));
 const beforeMemberDelete=run('JSON.stringify(state)');
 run("confirmMemberDelete('s1')");assert.equal(confirmation.open,true);
-assert(confirmation.innerHTML.includes('希望休・有給希望 2件、勤務セル 2件、固定 1件、個別設定 2件（2か月分）'));
+assert(confirmation.innerHTML.includes('希望休・有給・出勤希望 2件、勤務セル 2件、固定 1件、個別設定 2件（2か月分）'));
 assert(confirmation.innerHTML.includes('条件文に書いた名前やメモは自動では消しません'));
 assert(confirmation.innerHTML.includes('管理者がいなくなると会議日の条件を満たせなくなる'));
 assert.equal(el('#no').focused,true);assert.equal(el('#yes').className,'danger');
@@ -265,3 +265,23 @@ values.night='yes';values.memberPrompt='夜勤専門\nG勤務：可能';submitPe
 values.memberPrompt='夜勤専門\n<img src=x onerror=alert(1)>';submitPerson();run("memberForm('s3')");assert(!editor.innerHTML.includes('<img'));assert(editor.innerHTML.includes('&lt;img'));editor.querySelector('.cancel').onclick();
 run('memberForm()');values.name='追加職員テスト';values.memberPrompt='G勤務：可能';values.night='no';submitPerson();assert.equal(run("state.members.find(p=>p.id==='spersonal-test').memberPrompt"),'G勤務：可能');
 console.log('PASS: staff prompt add/edit/save/reopen, examples without duplicate insertion, live applied/notes preview, validation, escaping, undo/redo, condition snapshot and existing shifts unchanged');
+
+run("state=E.fresh();current='2026-10';tab='schedule';undo=[];redo=[];requestPerson='s3';requestKind='E';render()");
+assert(el('#content').innerHTML.includes('<option value="W"'));
+assert(el('#content').innerHTML.includes('希望日以外にも出勤できます'));
+el('#request-kind').onchange({target:{value:'W'}});el('#request-date').value='2026/11/20';submit();
+assert.equal(run('current'),'2026-11');assert.equal(run("mo().requests['s3:20']"),'W');
+assert(run('requestSummary()').includes('data-summary-kind="W"'));assert(run('requestSummary()').includes('20日（金）'));
+assert(run('conditionSnapshot()').includes('20日出勤希望'));
+const workSaved=run('JSON.stringify(state)');run('state=E.checkData(JSON.parse(JSON.stringify(state)));render()');assert.equal(run('JSON.stringify(state)'),workSaved);
+const workUndo=run('undo.length');submit();assert.equal(run('undo.length'),workUndo);
+run("mo().schedule['s3:20']='E';mo().locks['s3:20']=true;mo().generated=true;render()");
+el('#request-kind').onchange({target:{value:'F'}});el('#request-date').value='2026-11-20';submit();
+assert.equal(run("mo().requests['s3:20']"),'F');assert.equal(run("mo().schedule['s3:20']"),'E');assert.equal(run("mo().locks['s3:20']"),true);
+run('revert(false)');assert.equal(run("mo().requests['s3:20']"),'W');run('revert(true)');assert.equal(run("mo().requests['s3:20']"),'F');
+assert(run("paidBadge(state.members[2])").includes('入職日未設定'));assert(!run("paidBadge(state.members[2])").includes('<strong>0</strong>'));
+run("state.members[2].start='2026-01-15'");
+assert(run("paidBadge(state.members[2])").includes('2026-07-15〜2027-07-14'));assert(run("paidBadge(state.members[2])").includes('<strong>1</strong>'));
+run("current='2026-06'");assert(run("paidBadge(state.members[2])").includes('集計開始前'));
+assert(run('paidYearNote()').includes('入職日の6か月後'));assert(run('paidYearNote()').includes('表示月の末日'));
+console.log('PASS: shared work-request selector/date, cross-month registration, summary and snapshot, type replacement, JSON, undo/redo, fixed data preserved and personal paid-period badges');
