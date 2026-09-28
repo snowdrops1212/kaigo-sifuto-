@@ -42,7 +42,7 @@ for(const row of combinedTable.matchAll(/<tr(?: [^>]*)?>([\s\S]*?)<\/tr>/g)){
 }
 assert(el('#content').innerHTML.includes('id="daily-counts"'));
 for(const code of ['B','C','D'])assert(el('#content').innerHTML.includes('data-count-code="'+code+'"'));
-assert(el('#content').innerHTML.includes('人数不足'));
+assert(el('#content').innerHTML.includes('人数の過不足'));
 
 el('#request-kind').onchange({target:{value:'E'}});
 el('#request-date').value='2026-12-13';submit();
@@ -55,7 +55,7 @@ assert(!el('#content').innerHTML.includes('request-grid'));assert.equal((el('#co
 assert.equal((el('#content').innerHTML.match(/id="undo"/g)||[]).length,1);
 console.log('PASS: form on both schedule states, cross-month Nov/Dec registration, date restrictions removed, invalid date/tenure, deduplication, shared data and fixed shifts preserved');
 
-const ruleInput={dataset:{rule:'B'},value:'3',checkValidity(){return true;},reportValidity(){}};
+const ruleInput={dataset:{rule:'D'},value:'3',checkValidity(){return true;},reportValidity(){}};
 const targetInput={dataset:{target:'s1'},value:'160',checkValidity(){return true;},reportValidity(){}};
 const previousInput={dataset:{previous:'s1'},value:'D'};
 run("mo().daily[4]={C:4};state.users=[{id:'u1',name:'利用者テスト',type:'通い',weekdays:[1,2],start:'',end:''}]");
@@ -70,15 +70,15 @@ assert.equal(el('#generate').onclick,run('startGenerate'));
 assert(!membersHTML.includes('id="add-user"'));assert(!membersHTML.includes('data-user='));assert(!membersHTML.includes('data-daily='));assert(!membersHTML.includes('class="coverage"'));assert(!membersHTML.includes('日ごとの利用予定・必要人数を変更する'));assert(!membersHTML.includes('class="two-col"'));assert(membersHTML.includes('id="add-member"'));assert(membersHTML.includes('職員ごとの今月の時間・前月末の勤務'));
 assert.equal(run('JSON.stringify({users:state.users,daily:mo().daily})'),preservedHiddenData);
 ruleInput.onchange();targetInput.onchange();previousInput.onchange();
-assert.equal(run('mo().rules.B'),3);assert.equal(run('mo().targets.s1'),160);assert.equal(run('mo().previous.s1'),'D');assert.equal(run('mo().daily[4].C'),4);
+assert.equal(run('mo().rules.D'),3);assert.equal(run('mo().targets.s1'),160);assert.equal(run('mo().previous.s1'),'D');assert.equal(run('mo().daily[4].C'),4);
 const retainedRequests=run('JSON.stringify(mo().requests)'),retainedSchedule=run('JSON.stringify(mo().schedule)');
 el('#condition-to-month').onclick();assert.equal(run('tab'),'members');assert.equal(el('#monthly-conditions').scrolled,true);
 run("tab='schedule';render();tab='members';render()");
 assert.equal(run('JSON.stringify(mo().requests)'),retainedRequests);assert.equal(run('JSON.stringify(mo().schedule)'),retainedSchedule);
-assert(el('#content').innerHTML.includes('data-rule="B" min="0" max="31" value="3"'));
+assert(el('#content').innerHTML.includes('data-rule="D" min="0" max="31" value="3"'));
 run("tab='members';current='2027-01';render()");
-assert.equal(run('mo().rules.B'),2);
-run("current='2026-12';render()");assert.equal(run('mo().rules.B'),3);
+assert.equal(run('mo().rules.D'),1);
+run("current='2026-12';render()");assert.equal(run('mo().rules.D'),3);
 console.log('PASS: monthly conditions at top of staff page, rules/targets/prior controls and preserved hidden daily/user data, generation binding, month isolation and removal of old page without data loss');
 
 const editor=el('#editor');
@@ -231,3 +231,14 @@ run("confirmMemberDelete('missing')");assert.equal(confirmation.open,false);asse
 run('for(const p of [...state.members])E.removeMember(state,p.id);render()');
 assert(el('#content').innerHTML.includes('職員は未登録です'));assert(el('#content').innerHTML.includes('id="add-member"'));assert(!el('#content').innerHTML.includes('data-delete-member='));
 console.log('PASS: per-member delete controls, confirmation counts/warnings, cancel, delete, undo/redo, request selection reset, name escaping, missing/last member and add control');
+run("state=E.fresh();current='2026-10';tab='members';mo().rules.B=4;mo().rules.C=3;mo().daily[1]={B:8,C:5,D:2};mo().conditionPrompt='【自動反映する設定】\\nBの最低人数：4人\\nCの最低人数：3人\\nDの最低人数：1人\\n連続勤務の上限：5日\\n休日の目安：9日\\n【メモ】\\n個別のメモを保持';mo().appliedConditionPrompt=mo().conditionPrompt;render()");
+assert(el('#content').innerHTML.includes('id="staffing-b" readonly value="制限なし"'));
+assert(el('#content').innerHTML.includes('id="staffing-c" readonly value="2人"'));
+assert(!el('#content').innerHTML.includes('data-rule="B"'));assert(!el('#content').innerHTML.includes('data-rule="C"'));
+assert(run('conditionSnapshot()').includes('B 8人（旧設定・適用しない）'));
+assert(run('mo().conditionPrompt').includes('Bの人数：制限なし'));assert(run('mo().conditionPrompt').includes('Cの人数：2人'));
+assert(run('mo().conditionPrompt').includes('個別のメモを保持'));assert.equal(run('mo().conditionPrompt'),run('mo().appliedConditionPrompt'));
+assert(el('#condition-preview').innerHTML.includes('制限なし（固定）'));assert.equal(el('#apply-condition-prompt').disabled,false);
+run("mo().conditionPrompt=mo().conditionPrompt.replace('Cの人数：2人','Cの人数：3人');updateConditionPreview()");
+assert.equal(el('#apply-condition-prompt').disabled,true);
+console.log('PASS: fixed B/C controls, legacy prompt upgrade with notes and pending state preserved, effective snapshot, fixed policy preview and invalid C prompt rejected');

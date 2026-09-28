@@ -10,7 +10,9 @@
  const active=(p,m,d)=>(!p.start||p.start<=iso(m,d))&&(!p.end||p.end>=iso(m,d));
  const works=c=>!!c&&c!=='E'&&c!=='F';
  function fresh(){return {version:1,members:Array.from({length:12},(_,i)=>({id:'s'+(i+1),name:['管理者（サンプル）','看護職員（サンプル）',...Array.from({length:10},(_,j)=>`介護職員${String(j+1).padStart(2,'0')}（サンプル）`)][i],role:i===0?'管理者':i===1?'看護職員':'介護職員',night:i>=2&&i<=6,nightMax:7,weekdays:[0,1,2,3,4,5,6],start:'',end:'',target:0})),users:[],months:{}};}
- function month(state,m){if(!state.months[m])state.months[m]={requests:{},schedule:{},locks:{},previous:{},targets:{},daily:{},meetings:[],rules:{B:2,C:2,D:1,maxRun:5,off:9},generated:false};return state.months[m];}
+ function month(state,m){if(!state.months[m])state.months[m]={requests:{},schedule:{},locks:{},previous:{},targets:{},daily:{},meetings:[],rules:{B:0,C:2,D:1,maxRun:5,off:9},generated:false};return state.months[m];}
+ // B/C use the facility policy even when legacy monthly or daily settings are loaded.
+ const staffingNeed=(mo,d,code)=>code==='B'?0:code==='C'?2:(mo.daily[d]?.[code]??mo.rules[code]);
  function meetingDays(state,m){return [...new Set(month(state,m).meetings||[])].sort((a,b)=>a-b);}
  function meetingConflicts(state,m){const mo=month(state,m),issues=[];const add=(text,id,d)=>issues.push({type:'meeting',text,id,d});
   for(const d of meetingDays(state,m)){
@@ -32,7 +34,7 @@
  function dailyEquivalent(state,m){const mo=month(state,m);return Array.from({length:days(m)},(_,i)=>{const day=i+1;const tenths=state.members.reduce((sum,p)=>sum+(active(p,m,day)?equivalentTenths(mo.schedule[key(p.id,day)]):0),0);return {day,tenths,value:(tenths/10).toFixed(1),status:equivalentStatus(tenths)};});}
  function validate(state,m){const mo=month(state,m),n=days(m),issues=meetingConflicts(state,m); const add=(type,text,id,d)=>issues.push({type,text,id,d});
   for(const d of meetingDays(state,m))for(const p of state.members)if(p.role==='管理者'&&active(p,m,d)&&mo.schedule[key(p.id,d)]!=='B')add('meeting',`${p.name} ${d}日：会議日はB（日勤）が必要です`,p.id,d);
-  for(let d=1;d<=n;d++)for(const c of ['B','C','D']){const need=mo.daily[d]?.[c]??mo.rules[c],num=state.members.filter(p=>active(p,m,d)&&mo.schedule[key(p.id,d)]===c).length;if(num<need)add('coverage',`${d}日 ${c}が${need-num}人不足`,null,d);}
+  for(let d=1;d<=n;d++)for(const c of ['C','D']){const need=staffingNeed(mo,d,c),num=state.members.filter(p=>active(p,m,d)&&mo.schedule[key(p.id,d)]===c).length;if(num<need)add('coverage',`${d}日 ${c}が${need-num}人不足${c==='C'?'（毎日ちょうど2人）':''}`,null,d);if(c==='C'&&num>need)add('coverage',`${d}日 Cが${num-need}人超過（${num}人／毎日ちょうど2人）`,null,d);}
   for(const r of dailyEquivalent(state,m))if(r.tenths<70)add('equivalent',`${r.day}日：8時間換算 ${r.value}（施設基準7.0未満）`,null,r.day);
   for(const p of state.members){let run=0,hours=0,night=0; for(let d=1;d<=n;d++){const k=key(p.id,d),c=mo.schedule[k]||'',r=mo.requests[k];const before=d===1?prior(state,m,p):mo.schedule[key(p.id,d-1)];
    if(c==='A')add('hoursUnknown',`${p.name} ${d}日：A（7:00〜16:30）の休憩時間未確認・時間合計は未確定`,p.id,d);
@@ -49,7 +51,7 @@
    if(hours>target(p,mo,n))add('hours',`${p.name}：${hours}時間（目安${target(p,mo,n)}時間）`,p.id,null);
   }return issues;
  }
- function generate(state,m){const mo=month(state,m),n=days(m);const meetingErrors=meetingConflicts(state,m);if(meetingErrors.length)throw Error(meetingErrors[0].text+'。会議日または該当の条件を調整してください。');for(const [k,c] of Object.entries(mo.requests))if(mo.locks[k]&&mo.schedule[k]!==c)throw Error('希望休と固定勤務が重なっています。該当セルの固定を解除するか、希望休に変更してください。');let best=null,bestScore=Infinity;
+ function generate(state,m){const mo=month(state,m),n=days(m);const meetingErrors=meetingConflicts(state,m);if(meetingErrors.length)throw Error(meetingErrors[0].text+'。会議日または該当の条件を調整してください。');for(const [k,c] of Object.entries(mo.requests))if(mo.locks[k]&&mo.schedule[k]!==c)throw Error('希望休と固定勤務が重なっています。該当セルの固定を解除するか、希望休に変更してください。');for(let d=1;d<=n;d++){const fixedC=state.members.filter(p=>active(p,m,d)&&mo.locks[key(p.id,d)]&&mo.schedule[key(p.id,d)]==='C').length;if(fixedC>2)throw Error(`${d}日：Cの固定勤務が${fixedC}人あります。Cは毎日ちょうど2人のため、固定を解除するか勤務を変更してください。`);}let best=null,bestScore=Infinity;
   for(let attempt=0;attempt<60;attempt++){const sc={},protectedKeys=new Set(),reserved=new Set();
    for(const p of state.members)for(let d=1;d<=n;d++){const k=key(p.id,d);sc[k]=active(p,m,d)?'E':'';if(mo.requests[k]){sc[k]=mo.requests[k];protectedKeys.add(k);}if(mo.locks[k]){sc[k]=mo.schedule[k]||'';protectedKeys.add(k);}}
    for(const d of meetingDays(state,m))for(const p of state.members)if(p.role==='管理者'&&active(p,m,d)){const k=key(p.id,d);sc[k]='B';protectedKeys.add(k);}
@@ -64,7 +66,7 @@
    }
    // Scarce days first. Requests, manually fixed shifts, and night/rest blocks stay protected.
    const order=Array.from({length:n},(_,i)=>i+1).sort((a,b)=>state.members.filter(p=>can(p,a,'C')).length-state.members.filter(p=>can(p,b,'C')).length);
-   for(const d of order)for(const c of ['C','B']){let need=(mo.daily[d]?.[c]??mo.rules[c])-state.members.filter(p=>sc[key(p.id,d)]===c).length;
+   for(const d of order)for(const c of ['C']){let need=staffingNeed(mo,d,c)-state.members.filter(p=>sc[key(p.id,d)]===c).length;
     while(need-->0){const pool=state.members.filter(p=>!reserved.has(key(p.id,d))&&!protectedKeys.has(key(p.id,d))&&sc[key(p.id,d)]==='E'&&can(p,d,c)&&runOK(p,d)&&hrs(p)+8<=target(p,mo,n)).map(p=>({p,score:hrs(p)/Math.max(1,target(p,mo,n))+Math.random()*.2})).sort((a,b)=>a.score-b.score);if(!pool.length)break;sc[key(pool[0].p.id,d)]=c;}
    }
    for(const p of state.members){const eligible=Array.from({length:n},(_,i)=>i+1).sort(()=>Math.random()-.5);for(const d of eligible){const k=key(p.id,d);if(hrs(p)+8>target(p,mo,n))break;if(sc[k]==='E'&&!protectedKeys.has(k)&&!reserved.has(k)&&can(p,d,'B')&&runOK(p,d))sc[k]='B';}}
@@ -102,5 +104,5 @@
    for(const field of ['previous','targets'])if(record[field])delete record[field][id];
   }return true;
  }
- root.ShiftEngine={memberRemovalSummary,removeMember,meetingDays,meetingConflicts,annualPaidLeave,shifts,dailyCounts,equivalentCodes,equivalentTenths,equivalentStatus,dailyEquivalent,copy,days,iso,weekday,prevMonth,key,active,works,fresh,month,prior,target,validate,generate,checkData};if(typeof module!=='undefined')module.exports=root.ShiftEngine;
+ root.ShiftEngine={staffingNeed,memberRemovalSummary,removeMember,meetingDays,meetingConflicts,annualPaidLeave,shifts,dailyCounts,equivalentCodes,equivalentTenths,equivalentStatus,dailyEquivalent,copy,days,iso,weekday,prevMonth,key,active,works,fresh,month,prior,target,validate,generate,checkData};if(typeof module!=='undefined')module.exports=root.ShiftEngine;
 })(typeof window!=='undefined'?window:globalThis);
