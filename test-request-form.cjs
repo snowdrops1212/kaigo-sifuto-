@@ -63,6 +63,9 @@ const preservedHiddenData=run('JSON.stringify({users:state.users,daily:mo().dail
 document.querySelectorAll=s=>({'[data-rule]':[ruleInput],'[data-target]':[targetInput],'[data-previous]':[previousInput]}[s]||[]);
 run("tab='members';render()");
 let membersHTML=el('#content').innerHTML;
+assert(!membersHTML.includes('data-rule="maxRun"'));assert(!membersHTML.includes('連続勤務の上限（日）'));
+assert.equal(run('mo().rules.maxRun'),5,'removing the numeric control preserves the existing scheduling rule');
+assert(membersHTML.includes('data-rule="D"'));assert(membersHTML.includes('data-rule="off"'));
 assert(membersHTML.startsWith('<div class="panel" id="monthly-conditions">'));
 assert(membersHTML.indexOf('今月の作成条件')<membersHTML.indexOf('シフトを組む条件・プロンプト'));
 assert.equal((membersHTML.match(/id="generate"/g)||[]).length,1);
