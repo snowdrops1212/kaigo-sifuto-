@@ -17,7 +17,7 @@
 .paid-year-note{font-size:14px;color:#756124;background:#fff9e4;border:1px solid #f0df9e;border-radius:8px;padding:10px 14px;margin:12px 0}
 th.paid-person{min-width:310px;max-width:360px}
 .person-heading{display:flex;align-items:center;gap:10px;justify-content:space-between}
-.person-heading .person-name{min-width:0}
+.person-identity{display:flex;align-items:baseline;gap:12px;min-width:0;flex:1}.person-heading .person-name{min-width:0}.person-identity .person-role{display:inline-block;margin-left:auto;white-space:nowrap;flex-shrink:0}
 .annual-paid-badge{display:inline-flex;align-items:center;gap:4px;flex-shrink:0;border:1px solid #e8cc77;background:#ffedaf;color:#624800;border-radius:6px;padding:3px 7px;font-size:13px;font-weight:500}
 .annual-paid-badge strong{font-size:18px;line-height:1.3;font-variant-numeric:tabular-nums}
 .request-grid tr.selected-person td{background:#f0f7fa}
@@ -38,7 +38,7 @@ th.paid-person{min-width:310px;max-width:360px}
 .is-fit .schedule-name-col{width:300px}.is-fit .schedule-day-col{width:48px}.is-fit .schedule-meta-col{width:102px}
 .is-fit .schedule-grid th:first-child,.is-fit .schedule-grid td:first-child{min-width:0;max-width:none;position:sticky;left:0}
 .is-fit .schedule-grid th,.is-fit .schedule-grid td{padding:5px 3px}.is-fit .schedule-grid thead th{position:static;font-size:14px;padding:8px 3px}.is-fit .schedule-grid thead th small{font-size:12px;margin-top:4px}
-.is-fit .person-heading{flex-wrap:nowrap;gap:5px}.is-fit .person-name{font-size:14px;white-space:nowrap}.is-fit .person-role{display:none}
+.is-fit .person-heading{flex-wrap:nowrap;gap:5px}.is-fit .person-identity{gap:10px}.is-fit .person-name{font-size:14px;white-space:nowrap}.is-fit .person-role{display:inline-block;font-size:12px;white-space:nowrap}
 .is-fit .annual-paid-badge{font-size:0;gap:2px;padding:2px 4px;border-radius:4px}.is-fit .annual-paid-badge:before{content:'有給';font-size:12px}.is-fit .annual-paid-badge:after{content:'日';font-size:12px}.is-fit .annual-paid-badge strong{font-size:14px}
 .is-fit .schedule-grid .cell{min-width:0;min-height:30px;width:100%;height:30px;padding:4px 1px;font-size:14px;line-height:1.25;border-radius:4px}
 .is-fit .schedule-grid tbody:not(.daily-count-rows) td:nth-last-child(-n+3){font-size:12px;white-space:normal;overflow-wrap:anywhere}
