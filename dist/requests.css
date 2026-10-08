@@ -34,7 +34,7 @@ th.paid-person{min-width:310px;max-width:360px}
 .request-summary-compact{border-top:1px solid var(--line);margin-top:16px;padding-top:12px;font-size:.875rem;line-height:1.6}.request-summary-heading{display:flex;align-items:baseline;gap:8px 16px;flex-wrap:wrap;margin-bottom:6px}.request-summary-heading h3{font-size:.875rem;margin:0}.request-summary-list{list-style:none;margin:0;padding:0}.request-summary-list li{display:grid;grid-template-columns:minmax(140px,1fr) minmax(0,2fr) minmax(0,2fr);gap:8px 16px;padding:8px 0;border-bottom:1px solid #edf1f3}.request-summary-list li:last-child{border-bottom:0}.request-summary-name{overflow-wrap:anywhere;font-weight:600}.request-summary-kind{display:flex;align-items:baseline;gap:8px;min-width:0}.request-summary-label{flex:none;color:var(--muted)}.request-summary-dates{display:flex;flex-wrap:wrap;gap:4px;min-width:0}.request-summary-date{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;border-radius:4px;padding:1px 3px 1px 6px;font-variant-numeric:tabular-nums}.request-summary-remove{display:inline-grid;place-items:center;width:18px;height:18px;min-width:18px;min-height:18px;margin:0;padding:0;border:0;border-radius:50%;background:rgba(255,255,255,.75);color:#5e7079;font-size:14px;font-weight:800;line-height:1}.request-summary-remove:hover,.request-summary-remove:focus-visible{background:#fff;color:#a32934;box-shadow:0 0 0 2px rgba(163,41,52,.2)}.request-summary-empty{margin:8px 0 0;color:var(--muted)}@media(max-width:700px){.request-summary-list li{grid-template-columns:minmax(0,1fr);gap:5px}.request-summary-kind{flex-wrap:wrap}}
 .schedule-view-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:12px 0}.schedule-view-toolbar button{min-height:44px;font-size:14px}.schedule-view-toolbar button[aria-pressed=true]:not(.primary){background:#e3eef2;border-color:#184959}
 #schedule-viewport{position:relative;max-height:none}#schedule-canvas{transform-origin:top left;box-sizing:content-box}
-#schedule-viewport.is-fit{height:calc(100dvh - 210px);min-height:300px;max-height:820px;overflow-x:auto;overflow-y:hidden;background:#fff}
+#schedule-viewport.is-fit{height:calc(100dvh - 170px);min-height:300px;max-height:none;overflow-x:auto;overflow-y:hidden;background:#fff}
 .is-fit .schedule-grid{table-layout:fixed;width:100%;font-size:20px;line-height:1.25;font-weight:800;color:#000!important}
 .is-fit .schedule-grid *{color:#000!important}
 .is-fit .schedule-name-col{width:214px}.is-fit .schedule-day-col{width:69px}.is-fit .schedule-hours-col{width:112px}.is-fit .schedule-night-col,.is-fit .schedule-holiday-col{width:56px}
@@ -68,7 +68,7 @@ body.schedule-expanded #schedule-viewport{flex:1;min-height:0;height:auto;max-he
  #schedule-panel>.legend .chip{font-size:7.5pt!important;padding:.45mm 1.2mm!important}
  #schedule-viewport{display:block!important;overflow:visible!important;height:auto!important;max-height:none!important;border:1px solid #9aa7ad!important;border-radius:0!important}
  #schedule-canvas{zoom:1!important;width:100%!important}
- .schedule-grid{width:100%!important;table-layout:fixed!important;font-size:7.5pt!important}
+ .schedule-grid{width:100%!important;height:auto!important;table-layout:fixed!important;font-size:7.5pt!important}
  .schedule-grid col.schedule-name-col{width:34mm!important}
  .schedule-grid col.schedule-day-col{width:auto!important}
  .schedule-grid col.schedule-hours-col{width:16mm!important}.schedule-grid col.schedule-night-col,.schedule-grid col.schedule-holiday-col{width:10mm!important}
@@ -94,6 +94,13 @@ body.schedule-expanded #schedule-viewport{flex:1;min-height:0;height:auto;max-he
 .request-summary-date.work-request{background:#e1f3ed;color:#16634c;border:1px solid #b4dace}
 
 @media screen{
+ .is-fit .schedule-grid tbody:not(.daily-count-rows) tr{height:62px}
+ .is-fit .schedule-grid tbody:not(.daily-count-rows) .person-heading{min-height:62px}
+ .is-fit .schedule-grid tbody:not(.daily-count-rows) .cell{height:50px;min-height:50px}
+ .is-fit .person-name{grid-column:1;grid-row:1}
+ .is-fit .person-role{grid-column:2;grid-row:1}
+ .is-fit .member-work-limit{grid-column:1/-1;grid-row:2;display:block;min-width:0;padding:2px 7px 3px;border-top:1px solid #dce4e7;font-size:13px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left}
+ .is-fit .daily-count-rows td{padding-block:6px}
  #schedule-viewport{isolation:isolate;scrollbar-gutter:auto;scrollbar-width:none;overscroll-behavior:contain;touch-action:pan-x}
  #schedule-viewport::-webkit-scrollbar{width:0;height:0;display:none}
  .schedule-grid th:first-child,.schedule-grid td:first-child{position:sticky!important;left:0!important;z-index:9!important;background:#fff!important;border-right:3px solid #184959!important;box-shadow:none}

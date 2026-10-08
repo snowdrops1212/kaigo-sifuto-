@@ -4,9 +4,11 @@ function scheduleViewControls(){return '<div class="schedule-view-toolbar"><div 
 function fitHeightScale(height,tableHeight){if([height,tableHeight].some(v=>!Number.isFinite(v)||v<=0))return 1;return Math.min(1,height/tableHeight);}
 function fitWidthScale(width,tableWidth){if([width,tableWidth].some(v=>!Number.isFinite(v)||v<=0))return 1;return Math.min(1,width/tableWidth);}
 function fitCanvasWidth(naturalWidth,viewportWidth,scale,widthRatio=1){if([naturalWidth,viewportWidth,scale,widthRatio].some(v=>!Number.isFinite(v)||v<=0))return naturalWidth;return Math.ceil(Math.max(naturalWidth,(viewportWidth-2)*widthRatio/scale));}
+function fitFillTableHeight(availableHeight,tableHeight,scale){if([availableHeight,tableHeight,scale].some(v=>!Number.isFinite(v)||v<=0))return 0;return tableHeight*scale<availableHeight*.96?Math.floor(availableHeight*.96/scale):0;}
 function fitScheduleTable(){
  const viewport=$('#schedule-viewport'),canvas=$('#schedule-canvas');
  if(tab!=='schedule'||!mo().generated||!viewport||!canvas)return;
+ const table=canvas.querySelector?.('.schedule-grid');if(table)table.style.height='';
  canvas.style.zoom='';canvas.style.width='';canvas.style.paddingInline='';
  if(!scheduleFit)return;
  const naturalWidth=438+n()*69,viewportWidth=Number.isFinite(viewport.clientWidth)?viewport.clientWidth:0,availableHeight=Math.max(1,viewport.clientHeight-2);
@@ -14,6 +16,8 @@ function fitScheduleTable(){
  let height=canvas.offsetHeight;if(!height)return;
  let scale=Math.min(fitHeightScale(availableHeight,height),fitWidthScale(viewportWidth-2,naturalWidth));
  for(let pass=0;pass<2;pass++){const fittedWidth=fitCanvasWidth(naturalWidth,viewportWidth,scale);canvas.style.width=fittedWidth+'px';height=canvas.offsetHeight;if(!height)return;scale=Math.min(fitHeightScale(availableHeight,height),fitWidthScale(viewportWidth-2,fittedWidth));}
+ // When the width determines the scale, share the spare vertical space across all table rows.
+ const fillHeight=fitFillTableHeight(availableHeight,height,scale);if(table&&fillHeight){table.style.height=fillHeight+'px';height=canvas.offsetHeight;scale=Math.min(scale,fitHeightScale(availableHeight,height));}
  const fittedWidth=fitCanvasWidth(naturalWidth,viewportWidth,scale),panPadding=Math.ceil((viewportWidth-2)/scale);
  canvas.style.width=fittedWidth+'px';canvas.style.paddingInline=panPadding+'px';
  canvas.style.zoom=String(scale);
