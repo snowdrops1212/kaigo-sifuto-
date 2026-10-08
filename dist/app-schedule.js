@@ -2,7 +2,7 @@
 // Generated schedule table, viewport behavior, validation display, and cell editing.
 function scheduleViewControls(){return '<div class="schedule-view-toolbar"><div class="toolbar"><button type="button" id="schedule-fit" aria-pressed="'+scheduleFit+'">縦を全体表示</button><button type="button" id="schedule-zoom" aria-pressed="'+(!scheduleFit)+'">文字を大きくする</button><button type="button" id="schedule-expand" class="primary" aria-pressed="'+scheduleExpanded+'">'+(scheduleExpanded?'通常画面に戻る':'表を画面いっぱいに表示')+'</button></div><span id="schedule-view-status" class="subtle" role="status">'+(scheduleFit?'全職員と人数集計を縦に表示。日付は横にスクロールできます':'拡大表示：スクロールして編集できます')+'</span></div>';}
 function fitHeightScale(height,tableHeight){if([height,tableHeight].some(v=>!Number.isFinite(v)||v<=0))return 1;return Math.min(1,height/tableHeight);}
-function fitWidthForScale(naturalWidth,viewportWidth,scale){if(!Number.isFinite(naturalWidth)||naturalWidth<=0||!Number.isFinite(viewportWidth)||viewportWidth<=2||!Number.isFinite(scale)||scale<=0)return naturalWidth;return Math.ceil(Math.max(naturalWidth,(viewportWidth-2)/scale)+420);}
+function fitWidthForScale(naturalWidth,viewportWidth,scale){if(!Number.isFinite(naturalWidth)||naturalWidth<=0||!Number.isFinite(viewportWidth)||viewportWidth<=2||!Number.isFinite(scale)||scale<=0)return naturalWidth;return Math.ceil(Math.max(naturalWidth,(viewportWidth-2)/scale)*2.2);}
 function fitScheduleTable(){
  const viewport=$('#schedule-viewport'),canvas=$('#schedule-canvas');
  if(tab!=='schedule'||!mo().generated||!viewport||!canvas)return;
