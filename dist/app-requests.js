@@ -71,6 +71,27 @@ function requestControls(){
  if(requestPerson&&!state.members.some(p=>p.id===requestPerson))requestPerson='';
  return '<form class="request-controls" id="request-form"><label class="field">職員<select id="request-person" required>'+options([['','職員を選択'],...state.members.map(p=>[p.id,p.name])],requestPerson)+'</select></label><label class="field">希望の種類<select id="request-kind">'+options([['E','希望休'],['F','有給'],['W','出勤希望']],requestKind)+'</select></label>'+requestShiftControl()+'<div class="field request-date-field"><label for="request-date">日付</label><div class="request-date-input"><input id="request-date" type="text" inputmode="numeric" autocomplete="off" required placeholder="2026/10/01" aria-describedby="request-date-help" value="'+esc(requestDate)+'"><button id="open-request-calendar" type="button" aria-haspopup="dialog" aria-controls="editor">カレンダー</button></div></div><button id="register-request" type="submit" class="primary">登録</button><p class="desc" id="request-date-help">日付は年/月/日で入力、またはカレンダーから選択できます。正社員・パートとも、出勤希望の時だけ希望勤務を選べます。希望休・有給では「—」の無効な欄になります。出勤希望は優先して勤務を組み、希望日以外にも出勤できます。同じ職員・同じ日の希望は、最後に登録した内容に置き換わります。</p></form>';
 }
+function timeOffNightStart(personId,month,day,requested){
+ for(let offset=0;offset<=2;offset++){
+  let startDay=day-offset,startMonth=month;
+  if(startDay<1){startMonth=E.prevMonth(month);startDay+=E.days(startMonth);}
+  if(state.months[startMonth]?.schedule?.[k(personId,startDay)]!=='D')continue;
+  if(offset===2&&requested==='E')continue;
+  return {month:startMonth,day:startDay};
+ }
+ return null;
+}
+function applyTimeOffToSchedule(personId,month,day,requested){
+ const record=E.month(state,month),cell=k(personId,day),start=timeOffNightStart(personId,month,day,requested);
+ if(start){
+  const nightRecord=state.months[start.month],nightCell=k(personId,start.day);
+  nightRecord.schedule[nightCell]='';delete nightRecord.locks[nightCell];
+  clearNightSequenceTail(personId,start.month,start.day);
+ }
+ if(record.generated){record.schedule[cell]=requested;record.locks[cell]=true;}
+ else if(record.locks[cell]&&record.schedule[cell]!==requested)delete record.locks[cell];
+ return !!start;
+}
 function bindRequestControls(){
  bindMeetingControls();
  document.querySelectorAll('[data-remove-request]').forEach(button=>button.onclick=()=>removeRequest(button.dataset.removeRequest,+button.dataset.removeDay));
@@ -92,11 +113,17 @@ function bindRequestControls(){
   const requestedShift=requestKind==='W'?requestShift:'',allowed=requestShiftChoices(p).some(([code])=>code===requestedShift);
   if(requestKind==='W'&&!allowed)return toast('希望勤務を選んでください。');
   const id=k(p.id,day),existing=state.months[targetMonth];
+  if(requestKind!=='W'&&p.role==='管理者'&&(existing?.meetings||[]).includes(day))return toast(p.name+' '+day+'日は会議日のB勤務が必要です。希望休・有給にするには先に会議日を変更してください。');
   const showTarget=()=>{requestDate=date;current=targetMonth;$('#month').value=current;};
-  if(existing?.requests[id]===requestKind&&(requestedShift?existing.workRequests?.[id]===requestedShift:!existing?.workRequests?.[id])){showTarget();render();return toast('同じ内容が登録済みです。');}
-  change(()=>{const record=E.month(state,targetMonth);record.requests[id]=requestKind;if(requestedShift)record.workRequests[id]=requestedShift;else delete record.workRequests[id];showTarget();});
+  if(existing?.requests[id]===requestKind&&(requestedShift?existing.workRequests?.[id]===requestedShift:!existing?.workRequests?.[id])){
+   if(requestKind!=='W'&&existing.generated&&existing.schedule[id]!==requestKind){if(!change(()=>{applyTimeOffToSchedule(p.id,targetMonth,day,requestKind);showTarget();}))return;return toast('登録済みの希望を作成済みシフトへ反映しました。');}
+   showTarget();render();return toast('同じ内容が登録済みです。');
+  }
+  let clearedNight=false;
+  const saved=change(()=>{const record=E.month(state,targetMonth);record.requests[id]=requestKind;if(requestedShift)record.workRequests[id]=requestedShift;else delete record.workRequests[id];if(requestKind!=='W')clearedNight=applyTimeOffToSchedule(p.id,targetMonth,day,requestKind);showTarget();});
+  if(!saved)return;
   const shiftLabel=requestedShift?'（'+requestedShift+' '+E.shifts[requestedShift].label+'）':'';
-  toast(p.name+' '+date+'の'+(requestKind==='W'?'出勤希望'+shiftLabel:requestKind==='F'?'有給':'希望休')+'を登録しました。'+(mo().generated?'作成済みシフトへの反映は、再作成または手動変更で行ってください。':''));
+  toast(p.name+' '+date+'の'+(requestKind==='W'?'出勤希望'+shiftLabel:requestKind==='F'?'有給':'希望休')+'を登録しました。'+(clearedNight?'重なるD→d→Eを空欄にしました。':'')+(mo().generated?'必要に応じて再作成してください。':''));
  };
 }
 function removeRequest(personId,day){const person=state.members.find(p=>p.id===personId),cell=k(personId,day),code=mo().requests[cell];if(!person||!code)return;const label=code==='W'?'出勤希望':code==='F'?'有給':'希望休';change(()=>{delete mo().requests[cell];delete mo().workRequests[cell];});toast(person.name+' '+day+'日の'+label+'を削除しました。');}
@@ -107,7 +134,7 @@ function bindMonthlyConditions(){const m=mo();
  document.querySelectorAll('[data-previous]').forEach(i=>i.onchange=()=>change(()=>m.previous[i.dataset.previous]=i.value));
  $('#generate').onclick=startGenerate;
 }
-function startGenerate(){const meetingErrors=E.meetingConflicts(state,current);if(meetingErrors.length)return toast(meetingErrors[0].text+'。会議日または条件を調整してください。');if(mo().conditionPrompt!==undefined&&mo().conditionPrompt!==mo().appliedConditionPrompt){tab='members';render();$('#condition-prompt').focus();toast('変更した条件の反映内容を確認し、「月の作成条件に反映」を押してください。');return;}const conflict=Object.entries(mo().requests).find(([key,c])=>c!=='W'&&mo().locks[key]&&mo().schedule[key]!==c);if(conflict){const [id,day]=conflict[0].split(':');return toast(`${state.members.find(p=>p.id===id)?.name} ${day}日：希望休と固定勤務が重なっています。先に固定を解除するか、勤務を変更してください。`);}const run=()=>{toast('希望休を確保して、シフトを組んでいます…');const b=$('#generate');if(b){b.disabled=true;b.textContent='作成中…';}setTimeout(()=>{try{change(()=>{E.generate(state,current);tab='schedule';});toast('シフト案を作成しました。要確認の項目を確認してください。');}catch(err){render();toast(err.message);}},60);};if(mo().generated)ask('シフト案を再作成しますか？','希望休と固定したセルを保持して再作成します。固定していない手直しは置き換わります。元に戻すこともできます。',run);else run();}
+function startGenerate(){const meetingErrors=E.meetingConflicts(state,current);if(meetingErrors.length)return toast(meetingErrors[0].text+'。会議日または条件を調整してください。');if(mo().conditionPrompt!==undefined&&mo().conditionPrompt!==mo().appliedConditionPrompt){tab='members';render();$('#condition-prompt').focus();toast('変更した条件の反映内容を確認し、「月の作成条件に反映」を押してください。');return;}const run=()=>{toast('希望休を確保して、シフトを組んでいます…');const b=$('#generate');if(b){b.disabled=true;b.textContent='作成中…';}setTimeout(()=>{const before=E.copy(state);try{const saved=change(()=>{for(const [cell,code] of Object.entries(mo().requests))if(code==='E'||code==='F'){const [id,day]=cell.split(':');applyTimeOffToSchedule(id,current,Number(day),code);}E.generate(state,current);tab='schedule';});if(saved)toast('シフト案を作成しました。要確認の項目を確認してください。');}catch(err){state=before;render();toast(err.message);}},60);};if(mo().generated)ask('シフト案を再作成しますか？','希望休を優先して再作成します。重なる固定勤務と夜勤セットは解除され、その他の固定セルは保持します。元に戻すこともできます。',run);else run();}
 function requestSummary(){
  const requests=mo().requests,days=range(),kinds=[['E','希望休','off'],['F','有給','paid'],['W','出勤希望','work-request']];
  const people=state.members.map(p=>({person:p,groups:kinds.map(([code,label,cls])=>({code,label,cls,dates:days.filter(d=>requests[k(p.id,d)]===code)}))})).filter(p=>p.groups.some(g=>g.dates.length));
@@ -115,4 +142,4 @@ function requestSummary(){
  return '<div class="request-summary-compact" id="request-summary" aria-labelledby="request-summary-title"><div class="request-summary-heading"><h3 id="request-summary-title">'+year+'年'+month+'月の希望一覧</h3><span class="subtle">'+people.length+'人・'+total+'日分（延べ）</span></div>'+
  (people.length?'<ul class="request-summary-list">'+people.map(p=>'<li data-summary-person="'+esc(p.person.id)+'"><strong class="request-summary-name">'+esc(p.person.name)+'</strong>'+p.groups.map(g=>'<div class="request-summary-kind"><span class="request-summary-label">'+g.label+'</span><div class="request-summary-dates" data-summary-kind="'+g.code+'">'+(g.dates.length?g.dates.map(day=>{const shift=g.code==='W'?mo().workRequests[k(p.person.id,day)]||'':'',dateText=day+'日（'+'日月火水木金土'[E.weekday(current,day)]+'）'+(shift?'・'+shift+' '+E.shifts[shift].label:'');return '<span class="request-summary-date '+g.cls+'">'+dateText+'<button type="button" class="request-summary-remove" data-remove-request="'+esc(p.person.id)+'" data-remove-day="'+day+'" aria-label="'+esc(p.person.name+'の'+day+'日の'+g.label+'を削除')+'" title="この希望を削除"><span aria-hidden="true">×</span></button></span>';}).join(''):'<span class="subtle">なし</span>')+'</div></div>').join('')+'</li>').join('')+'</ul>':'<p class="request-summary-empty">この月の希望休・有給・出勤希望はまだ登録されていません。</p>')+'</div>';
 }
-function scheduleRequestPanel(){return '<section class="panel" id="schedule-request-panel"><div class="panel-head"><h2>希望休・有給・出勤希望を登録</h2>'+(mo().generated?'':'<div class="toolbar">'+undoBar()+'</div>')+'</div>'+requestControls()+paidYearNote()+'<p class="subtle">作成済みのシフトは自動変更しません。登録後に再作成するか、勤務セルを手動で変更してください。</p>'+requestSummary()+meetingControls()+'</section>';}
+function scheduleRequestPanel(){return '<section class="panel" id="schedule-request-panel"><div class="panel-head"><h2>希望休・有給・出勤希望を登録</h2>'+(mo().generated?'':'<div class="toolbar">'+undoBar()+'</div>')+'</div>'+requestControls()+paidYearNote()+'<p class="subtle">作成済みのシフトに希望休・有給を登録すると、その日の勤務へすぐ反映します。重なる夜勤セットは空欄になり、再作成で組み直せます。</p>'+requestSummary()+meetingControls()+'</section>';}
