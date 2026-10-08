@@ -1,0 +1,23 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const E=require('./dist/engine.js'),StaffStore=require('./dist/staff-store.js');
+function memory(){const data=new Map();return {data,get length(){return data.size;},key:i=>[...data.keys()][i]??null,getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,String(v))};}
+function page(storage){const handlers={},els=new Map(),document={querySelector(k){if(!els.has(k))els.set(k,{style:{},textContent:'',innerHTML:''});return els.get(k);},addEventListener(){},querySelectorAll(){return [];}};const ctx=vm.createContext({ShiftEngine:E,StaffStore,localStorage:storage,document,window:{addEventListener:(type,fn)=>(handlers[type]??=[]).push(fn)},console:{warn(){}},setTimeout(){},clearTimeout(){}});vm.runInContext(fs.readFileSync('./dist/app-core.js','utf8'),ctx);vm.runInContext('render=()=>{}',ctx);return {run:code=>vm.runInContext(code,ctx),handlers,els};}
+function seed(storage){const state=E.fresh();state.members[2].name='G限定の職員';state.members[2].memberPrompt='Gのみ';state.members.push({...E.copy(state.members[2]),id:'part-extra',name:'B限定の職員',memberPrompt:'Bのみ'});E.month(state,'2026-10').generated=true;storage.setItem('akari-shift-state-v1',JSON.stringify(state));storage.setItem('akari-shift-staff-v1',JSON.stringify(state));return state;}
+const storage=memory();seed(storage);const first=page(storage),stale=page(storage);stale.run('var openedRevision=staffRevision');
+assert.equal(first.run("change(()=>{state.members[2].name='編集後の職員';state.members[2].target=42;},true)"),true);
+const committed=storage.getItem(StaffStore.primary);
+assert.equal(stale.run("change(()=>state.members[2].name='古い編集',true,openedRevision)"),false,'同時編集の旧版は拒否');
+assert.equal(storage.getItem(StaffStore.primary),committed);
+assert.equal(stale.run('persistState()'),true);assert.equal(stale.run('state.members[2].name'),'編集後の職員','通常保存は最新職員へ同期');
+// Simulate v81 and older tabs writing samples to every key they know, then reload.
+for(const key of ['akari-shift-state-v1','akari-shift-state-v1-backup','akari-shift-state-v1-backup-2','akari-shift-staff-v1','akari-shift-staff-v1-backup'])storage.setItem(key,JSON.stringify(E.fresh()));
+const reloaded=page(storage);assert.equal(reloaded.run('state.members.length'),13);assert.equal(reloaded.run('state.members[2].name'),'編集後の職員');assert.equal(reloaded.run('state.members[2].target'),42);assert.equal(reloaded.run('state.members[2].memberPrompt'),'Gのみ');assert.equal(reloaded.run('state.members[12].memberPrompt'),'Bのみ');
+assert.equal(reloaded.handlers.pagehide,undefined);assert.equal(reloaded.handlers.beforeunload,undefined,'閉じた時の無条件保存を廃止');
+const primaryBefore=storage.getItem(StaffStore.primary);for(const fn of reloaded.handlers.storage)fn({key:'akari-shift-state-v1',newValue:JSON.stringify(E.fresh()),storageArea:storage});assert.equal(reloaded.run('state.members.length'),13);assert.equal(storage.getItem(StaffStore.primary),primaryBefore,'旧タブのstorageイベントでは職員を変更しない');
+storage.setItem(StaffStore.primary,'broken');assert.equal(page(storage).run('state.members[2].name'),'編集後の職員','追記履歴から復元');
+const damaged=memory();damaged.setItem(StaffStore.primary,'broken');const before=[...damaged.data];const blocked=page(damaged);assert.equal(blocked.run('storageBlocked'),true);assert.equal(blocked.run('persistState()'),false);assert.deepEqual([...damaged.data],before,'破損時にサンプルで上書きしない');
+assert.equal(blocked.run('importSavedState(E.fresh())'),true,'明示的なファイル復元で保存を再開');assert.equal(blocked.run('storageBlocked'),false);assert([...damaged.data].some(([key,value])=>key.includes('-unreadable-')&&value==='broken'),'復元前の破損データも保全する');
+const history=StaffStore.create(storage,E).list();assert(history.some(entry=>entry.staff.members[2].name==='G限定の職員'));assert(history.some(entry=>entry.staff.members[2].name==='編集後の職員'),'編集前後の両方が履歴に残る');
+const migration=memory(),custom=seed(migration);migration.setItem('akari-shift-staff-v1-backup',JSON.stringify(custom));migration.setItem('akari-shift-staff-v1',JSON.stringify(E.fresh()));migration.setItem('akari-shift-state-v1',JSON.stringify(E.fresh()));assert.equal(page(migration).run('state.members.length'),13,'サンプルより編集済みバックアップを優先');
+const quota=memory();seed(quota);const quotaPage=page(quota),old=quota.getItem(StaffStore.primary);quota.setItem=()=>{throw Error('quota');};assert.equal(quotaPage.run("change(()=>state.members[2].name='保存できない編集',true)"),false);assert.equal(quota.getItem(StaffStore.primary),old);assert.equal(quotaPage.run('state.members[2].name'),'G限定の職員','保存失敗で保存済み情報を消さない');
+console.log('PASS: legacy-tab overwrite isolation, concurrent edit rejection, reload, append-only recovery, corrupt-data preservation, legacy recovery and storage failure');
