@@ -12,7 +12,7 @@
  const key=(id,d)=>`${id}:${d}`;
  const active=(p,m,d)=>(!p.start||p.start<=iso(m,d))&&(!p.end||p.end>=iso(m,d));
  const works=c=>!!c&&c!=='E'&&c!=='F';
- function onlyShiftCodes(line){const match=line.match(/^(.+)のみ勤務可能$/)||line.match(/^勤務可能:(.+)のみ$/)||line.match(/^勤務区分:(.+)のみ$/);if(!match)return null;const tokens=match[1].split(/[・、,]/).filter(Boolean),invalid=tokens.filter(code=>!Object.hasOwn(shifts,code)||!works(code));if(!tokens.length||invalid.length)return {codes:[],error:'「'+(invalid.join('・')||match[1])+'」は登録されている勤務記号ではありません。'};let codes=[...new Set(tokens)];if(codes.some(code=>code==='D'||code==='d'))codes=[...codes.filter(code=>code!=='D'&&code!=='d'),'D','d'];return {codes};}
+ function onlyShiftCodes(line){const symbols="BCDdEFGIJLM'/・、,";const direct=new RegExp('^(['+symbols+']+)のみ(?:勤務(?:可能)?)?$'),prefixed=new RegExp('^勤務(?:可能|区分)?:(['+symbols+']+)のみ$'),sentence=new RegExp('^勤務は(['+symbols+']+)のみ$'),match=line.match(direct)||line.match(prefixed)||line.match(sentence);if(!match)return null;const tokens=match[1].split(/[・、,]/).filter(Boolean),invalid=tokens.filter(code=>!Object.hasOwn(shifts,code)||!works(code));if(!tokens.length||invalid.length)return {codes:[],error:'「'+(invalid.join('・')||match[1])+'」は登録されている勤務記号ではありません。'};let codes=[...new Set(tokens)];if(codes.some(code=>code==='D'||code==='d'))codes=[...codes.filter(code=>code!=='D'&&code!=='d'),'D','d'];return {codes};}
  function parseMemberPrompt(text=''){
   const result={gAllowed:false,nightOnly:false,onlyShifts:[],applied:[],notes:[],errors:[]},seen=new Set();
   if(typeof text!=='string'||text.length>2000){result.errors.push('個別メモ・勤務条件は2,000文字以内で入力してください。');return result;}

@@ -290,7 +290,7 @@ ctx.FormData=class{constructor(form){this.values=form.values;}get(name){return t
 editor.querySelector=s=>el('editor '+s);
 const exampleButtons=[{dataset:{personalExample:'Gのみ勤務可能'}},{dataset:{personalExample:'G勤務：可能'}},{dataset:{personalExample:'勤務区分：夜勤専門'}}];
 editor.querySelectorAll=s=>s==='[data-personal-example]'?exampleButtons:[];
-run("state=E.fresh();current='2026-10';tab='members';undo=[];redo=[];mo().schedule['s3:1']='B';render();memberForm('s3')");
+run("state=E.fresh();current='2026-10';tab='members';undo=[];redo=[];mo().schedule['s3:1']='B';mo().locks['s3:1']=true;mo().requests['s3:2']='W';mo().workRequests['s3:2']='B';render();memberForm('s3')");
 assert(editor.innerHTML.includes('name="memberPrompt"'));assert(editor.innerHTML.includes('maxlength="2000"'));assert(editor.innerHTML.includes('自動作成を停止'));
 assert(editor.innerHTML.includes('name="employmentType"'));assert(editor.innerHTML.includes('name="usesI"'));assert(editor.innerHTML.includes('I勤務はパート専用'));assert(editor.innerHTML.includes('I勤務者は月9日休み'));
 assert(el('#person-form select[name="role"]').innerHTML.includes('value="__custom__"'));assert(el('#person-form select[name="role"]').innerHTML.includes('>手書き</option>'));assert(el('#person-form select[name="role"]').innerHTML.includes('次回から選択肢に残ります'));
@@ -306,7 +306,7 @@ exampleButtons[0].onclick();assert.equal(el('#member-prompt').value,'担当者�
 assert(el('#member-prompt-preview').innerHTML.includes('勤務を「G」だけに限定'));assert(el('#member-prompt-preview').innerHTML.includes('自動作成を停止'));
 const values={name:'個別条件テスト',role:'介護職員',employmentType:'full',usesI:'no',night:'yes',nightMax:'7',target:'14',targetMode:'min',start:'',end:'',weekdays:['0','1','2','3','4','5','6'],memberPrompt:el('#member-prompt').value};
 const submitPerson=()=>el('#person-form').onsubmit({preventDefault(){},target:{values}});
-submitPerson();assert.equal(run("state.members.find(p=>p.id==='s3').memberPrompt"),values.memberPrompt);assert.equal(run("state.members.find(p=>p.id==='s3').targetMode"),'min');assert.equal(run("mo().schedule['s3:1']"),'B');assert.equal(editor.open,false);
+submitPerson();assert.equal(run("state.members.find(p=>p.id==='s3').memberPrompt"),values.memberPrompt);assert.equal(run("state.members.find(p=>p.id==='s3').targetMode"),'min');assert.equal(run("mo().schedule['s3:1']"),'');assert.equal(run("mo().locks['s3:1']"),undefined);assert.equal(run("mo().workRequests['s3:2']"),undefined);assert(el('#toast').textContent.includes('条件外の勤務を1件、空白'));assert.equal(editor.open,false);
 assert.equal(JSON.parse(localStorage.getItem('akari-shift-state-v1')).members.find(p=>p.id==='s3').memberPrompt,values.memberPrompt,'職員編集をブラウザへ自動保存する');
 assert.equal(JSON.parse(localStorage.getItem('akari-shift-staff-v1')).members.find(p=>p.id==='s3').memberPrompt,values.memberPrompt,'職員情報を専用領域にも保存する');
 run("state=E.fresh();state=loadPersistedState();render()");assert.equal(run("state.members.find(p=>p.id==='s3').memberPrompt"),values.memberPrompt,'再読み込み時に職員情報を復元する');
@@ -324,7 +324,7 @@ values.memberPrompt='夜勤専門\n<img src=x onerror=alert(1)>';submitPerson();
 run('memberForm()');values.name='追加職員テスト';values.memberPrompt='G勤務：可能';values.night='no';submitPerson();assert.equal(run("state.members.find(p=>p.id==='spersonal-test').memberPrompt"),'G勤務：可能');
 ctx.crypto={randomUUID:()=> 'custom-role-test'};run('memberForm()');values.name='手書き職種テスト';values.role='__custom__';values.customRole='  ';values.memberPrompt='';const beforeBlankRole=run('JSON.stringify(state)');submitPerson();assert.equal(run('JSON.stringify(state)'),beforeBlankRole);assert(el('#form-error').textContent.includes('1〜50文字'));values.customRole='生活相談員';submitPerson();assert.equal(run("state.members.find(p=>p.id==='scustom-role-test').role"),'生活相談員');assert.equal(run('JSON.stringify(state.customRoles)'),'["生活相談員"]');assert.equal(run('JSON.stringify(E.checkData(E.copy(state)).customRoles)'),'["生活相談員"]');run('memberForm()');assert(el('#person-form select[name="role"]').innerHTML.includes('<option value="生活相談員"'));editor.querySelector('.cancel').onclick();
 assert(run("staffRow(state.members.find(p=>p.id==='scustom-role-test'),true)").includes('<span class="person-role">生活相談員</span>'));
-console.log('PASS: staff prompt add/edit/save/reopen, examples without duplicate insertion, live applied/notes preview, validation, escaping, undo/redo, condition snapshot and existing shifts unchanged');
+console.log('PASS: staff prompt add/edit/save/reopen, examples without duplicate insertion, live applied/notes preview, validation, escaping, undo/redo, condition snapshot and incompatible existing shifts cleared');
 
 const limitChoices=[{dataset:{choice:'B'}}];editor.querySelectorAll=s=>s==='[data-choice]'?limitChoices:[];
 run("state=E.fresh();current='2026-10';tab='schedule';undo=[];redo=[];mo().generated=true;state.members[2].target=8;state.members[2].targetMode='max';mo().schedule['s3:1']='B';render();editCell('s3',2)");

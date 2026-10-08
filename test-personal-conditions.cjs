@@ -2,7 +2,8 @@ const assert=require('node:assert/strict'),E=require('./dist/engine.js');
 for(const text of ['G勤務：可能','Ｇ勤務：可能。','Gを使えます','この人はGを使えます'])assert.equal(E.parseMemberPrompt(text).gAllowed,true);
 for(const text of ['勤務区分：夜勤専門','夜勤専門','夜勤専門です。'])assert.equal(E.parseMemberPrompt(text).nightOnly,true);
 for(const [text,codes] of [['Gのみ勤務可能',['G']],['Ｂ・Ｃのみ勤務可能。',['B','C']],['勤務可能：Dのみ',['D','d']]])assert.deepEqual(E.parseMemberPrompt(text).onlyShifts,codes);
-const onlyGPerson={memberPrompt:'Gのみ勤務可能',night:false,usesI:false,role:'介護職員',employmentType:'full'};
+for(const text of ['Bのみ','Bのみ勤務','Bのみ勤務可能','勤務はBのみ','勤務：Bのみ','勤務可能：Bのみ','勤務区分：Bのみ']){const parsed=E.parseMemberPrompt(text);assert.deepEqual(parsed.onlyShifts,['B'],text);assert.equal(parsed.errors.length,0,text);}
+const onlyGPerson={memberPrompt:'Gのみ',night:false,usesI:false,role:'介護職員',employmentType:'full'};
 assert(E.memberShiftAllowed(onlyGPerson,'G'));assert(E.memberShiftAllowed(onlyGPerson,'E'));assert(E.memberShiftAllowed(onlyGPerson,'F'));assert(!E.memberShiftAllowed(onlyGPerson,'B'));assert(!E.memberShiftAllowed(onlyGPerson,'C'));assert(!E.workRequestShiftAllowed(onlyGPerson,'B'));assert(E.workRequestShiftAllowed(onlyGPerson,'G'));
 for(const text of ['夜勤専門ではない','この人はGを使えません','夜勤専門かどうかは未確認','会議日はBにして']){
  const p=E.parseMemberPrompt(text);assert.equal(p.nightOnly,false);assert.equal(p.gAllowed,false);assert.deepEqual(p.notes,[text]);
@@ -28,9 +29,10 @@ for(const hours of [6,14]){
  assert.equal(values.filter(c=>c==='G').length,1);assert.equal(values.reduce((n,c)=>n+(E.shifts[c]?.hours||0),0),hours);assert.equal(gm.schedule['s1:1'],'E');
  assert.equal(E.dailyEquivalent(g,month).find(r=>gm.schedule[E.key('s1',r.day)]==='G').tenths%10,7);
 }
-const onlyG=E.fresh(),onlyGMonth=E.month(onlyG,month),onlyGStaff=onlyG.members[2];onlyGStaff.memberPrompt='Gのみ勤務可能';onlyGStaff.target=18;onlyGStaff.targetMode='max';E.generate(onlyG,month);
+const onlyG=E.fresh(),onlyGMonth=E.month(onlyG,month),onlyGStaff=onlyG.members[2];onlyGStaff.memberPrompt='Gのみ';onlyGStaff.target=18;onlyGStaff.targetMode='max';E.generate(onlyG,month);
 const onlyGCodes=Object.entries(onlyGMonth.schedule).filter(([key])=>key.startsWith(onlyGStaff.id+':')).map(([,code])=>code);assert.equal(onlyGCodes.filter(code=>code==='G').length,3);assert(onlyGCodes.every(code=>['G','E','F',''].includes(code)));assert(!E.validate(onlyG,month).some(issue=>issue.type==='personal'&&issue.id===onlyGStaff.id));
 onlyGMonth.schedule[E.key(onlyGStaff.id,1)]='B';assert(E.validate(onlyG,month).some(issue=>issue.type==='personal'&&issue.id===onlyGStaff.id&&issue.d===1));
+const onlyB=E.fresh(),onlyBMonth=E.month(onlyB,month),onlyBStaff=onlyB.members[2];onlyBStaff.memberPrompt='Bのみ';onlyBStaff.target=24;onlyBStaff.targetMode='max';E.generate(onlyB,month);const onlyBCodes=Object.entries(onlyBMonth.schedule).filter(([key])=>key.startsWith(onlyBStaff.id+':')).map(([,code])=>code);assert(onlyBCodes.every(code=>['B','E','F',''].includes(code)));assert(!onlyBCodes.includes('C'));
 const unknown=E.fresh();E.month(unknown,month);unknown.members[2].memberPrompt='腰痛のため重要事項を確認';const unknownBefore=JSON.stringify(unknown);assert.throws(()=>E.generate(unknown,month),/自動判定できない重要事項/);assert.equal(JSON.stringify(unknown),unknownBefore);assert(E.validate(unknown,month).some(issue=>issue.type==='personalNote'&&issue.id==='s3'));
 const legacy=E.fresh(),lm=E.month(legacy,month);legacy.members[0].target=6;E.generate(legacy,month);
 assert(!Object.entries(lm.schedule).some(([k,c])=>k.startsWith('s1:')&&c==='G'));
@@ -39,4 +41,4 @@ assert(E.meetingConflicts(manager,month).some(x=>x.text.includes('個別メモ�
 assert.deepEqual(E.checkData(E.copy(s)),s);
 for(const bad of [123,{},null,'a'.repeat(2001)]){const copy=E.copy(s);copy.members[0].memberPrompt=bad;assert.throws(()=>E.checkData(copy),/個別メモ/);}
 assert.deepEqual(E.checkData(E.fresh()),E.fresh());
-console.log('PASS: personal prompt aliases, only-shift enforcement, unknown important-note blocking, duplicate/conflict checks, night-only allocation, G6-hour allocation, meeting/fixed conflicts and JSON validation');
+console.log('PASS: short and long personal-condition aliases, B/G-only enforcement, unknown important-note blocking, duplicate/conflict checks, night-only allocation, G6-hour allocation, meeting/fixed conflicts and JSON validation');
