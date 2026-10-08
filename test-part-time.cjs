@@ -21,8 +21,8 @@ assert(!E.validate(state,month).some(x=>x.type==='iOff'&&x.id===part.id));
 for(let day=1;day<=E.days(month);day++)mo.schedule[E.key(part.id,day)]='I';
 assert(E.validate(state,month).some(x=>x.type==='iOff'&&x.id===part.id&&x.text.includes('月9日')));
 
-const legacy=E.fresh();delete legacy.members[0].employmentType;delete legacy.members[0].usesI;
+const legacy=E.fresh();delete legacy.members[0].employmentType;delete legacy.members[0].usesI;delete legacy.members[0].targetMode;
 const restored=E.checkData(E.copy(legacy));
-assert.equal(restored.members[0].employmentType,'full');assert.equal(restored.members[0].usesI,false);
+assert.equal(restored.members[0].employmentType,'full');assert.equal(restored.members[0].usesI,false);assert.equal(restored.members[0].targetMode,'max');
 const invalidManager=E.fresh();invalidManager.members[0].employmentType='part';assert.throws(()=>E.checkData(invalidManager),/管理者は正社員/);
 console.log('PASS: I is part-time-only, uses 7-hour days, targets at least nine E holidays, validates shortages and migrates legacy staff');

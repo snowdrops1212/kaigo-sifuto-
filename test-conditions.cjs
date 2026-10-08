@@ -13,12 +13,14 @@ for(const bad of [{},'x'.repeat(20001)]){m.conditionPrompt=bad;assert.throws(()=
 console.log('PASS: condition template, full-width input, strict numbers/units/duplicates, reference isolation, JSON roundtrip and validation');
 assert(text.includes('正社員は月176時間以上'));
 assert(text.includes('D → d → Eのセット内のEとは別に、月9日のE'));
-assert(text.includes('自動割当・充足判定を保留'));
+assert(text.includes('「以上／以内」に応じて自動作成・判定'));
+assert(text.includes('「以上」の職員は176時間などの設定時間を超えても出勤できる'));
+assert(text.includes('「以内」の職員は規定時間までに抑え'));
 assert(text.includes('I勤務者の月9日休みは自動作成・判定に反映'));
 assert.equal(P.withFacilityRules(text),text);
 const custom='独自の条件メモ';assert(P.withFacilityRules(custom).startsWith(custom));assert(P.withFacilityRules(custom).includes('176時間'));
 assert.equal(P.withFacilityRules('x'.repeat(19999)).length,19999,'long existing notes must not be truncated or made unloadable');
-console.log('PASS: full-time 176-hour and separate nine-day conditions documented without silently enabling incompatible allocation rules');
+console.log('PASS: full-time 176-hour target mode and separate nine-day conditions are documented consistently');
 assert(text.includes('Bの人数：制限なし'));assert(text.includes('Cの人数：2人'));
 for(const replacement of ['Cの人数：0人','Cの人数：1人','Cの人数：3人','Cの人数：2日','Cの人数：2人\nCの人数：2人'])assert(P.parse(text.replace('Cの人数：2人',replacement)).errors.length);
 for(const replacement of ['Bの人数：0人','Bの人数：2人','Bの人数：制限なし\nBの人数：制限なし'])assert(P.parse(text.replace('Bの人数：制限なし',replacement)).errors.length);

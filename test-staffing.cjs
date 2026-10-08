@@ -22,6 +22,17 @@ assert(E.dailyCounts(g,month).every(row=>row.counts.C===2));
 assert.equal(gm.schedule['s1:5'],'E');assert.equal(gm.schedule['s2:6'],'F');assert.equal(gm.schedule['s3:7'],'C');
 assert.equal(JSON.stringify({rules:gm.rules,daily:gm.daily,requests:gm.requests,locks:gm.locks}),retained);
 assert(!E.validate(g,month).some(x=>x.type==='coverage'));
+const hoursState=E.fresh(),hoursMonth=E.month(hoursState,month),hoursPerson=hoursState.members[2];hoursPerson.target=16;hoursPerson.targetMode='min';hoursMonth.schedule[E.key(hoursPerson.id,1)]='B';
+assert(E.validate(hoursState,month).some(x=>x.type==='hours'&&x.id===hoursPerson.id&&x.text.includes('16時間以上')));
+hoursMonth.schedule[E.key(hoursPerson.id,2)]='B';assert(!E.validate(hoursState,month).some(x=>x.type==='hours'&&x.id===hoursPerson.id));
+hoursMonth.schedule[E.key(hoursPerson.id,3)]='B';assert(!E.validate(hoursState,month).some(x=>x.type==='hours'&&x.id===hoursPerson.id),'以上は超過を許可する');
+hoursPerson.targetMode='max';assert(E.validate(hoursState,month).some(x=>x.type==='hours'&&x.id===hoursPerson.id&&x.text.includes('16時間以内')));
+assert(E.targetLimitIssue(hoursState,month,hoursPerson,[[4,'B']]).includes('設定できません'));
+hoursPerson.targetMode='min';assert.equal(E.targetLimitIssue(hoursState,month,hoursPerson,[[4,'B']]),'');
+const minimum=E.fresh(),minimumMonth=E.month(minimum,month),minimumPerson=minimum.members[0];minimumPerson.target=7;minimumPerson.targetMode='min';minimumPerson.weekdays=[E.weekday(month,1)];E.generate(minimum,month);
+const minimumHours=Object.entries(minimumMonth.schedule).filter(([cell])=>cell.startsWith(minimumPerson.id+':')).reduce((sum,[,code])=>sum+(E.shifts[code]?.hours||0),0);assert(minimumHours>=7,'以上は勤務単位で目標以上まで割り当てる');
+const capped=E.fresh(),cappedMonth=E.month(capped,month),cappedPerson=capped.members[0];cappedPerson.target=8;cappedPerson.targetMode='max';E.generate(capped,month);assert(E.projectedHours(capped,month,cappedPerson)<=8,'以内の自動作成は規定時間を超えない');
+const fixedOver=E.fresh(),fixedOverMonth=E.month(fixedOver,month),fixedOverPerson=fixedOver.members[2];fixedOverPerson.target=8;fixedOverPerson.targetMode='max';fixedOverMonth.schedule[E.key(fixedOverPerson.id,1)]='D';fixedOverMonth.locks[E.key(fixedOverPerson.id,1)]=true;assert.throws(()=>E.generate(fixedOver,month),/勤務時間目安8時間以内/);
 for(const id of ['s1','s2','s3']){gm.schedule[E.key(id,8)]='C';gm.locks[E.key(id,8)]=true;}
 const before=JSON.stringify(g);assert.throws(()=>E.generate(g,month),/Cの固定勤務が3人/);assert.equal(JSON.stringify(g),before);
 delete gm.locks['s3:8'];delete gm.schedule['s3:8'];for(const id of ['s3','s4']){gm.schedule[E.key(id,9)]='D';gm.locks[E.key(id,9)]=true;}
@@ -33,6 +44,7 @@ for(const value of [0,32,1.5]){const invalid=E.copy(g);invalid.months[month].rul
 for(const value of [-1,32,1.5]){const invalid=E.copy(g);invalid.months[month].rules.off=value;assert.throws(()=>E.checkData(invalid),/休日/);}
 for(const value of [-1,16,1.5]){const invalid=E.copy(g);invalid.members[2].nightMax=value;assert.throws(()=>E.checkData(invalid),/夜勤上限/);}
 for(const value of [-1,301,1.5]){const invalid=E.copy(g);invalid.members[2].target=value;assert.throws(()=>E.checkData(invalid),/勤務時間目安/);}
+for(const value of ['',null,'minimum','MAX']){const invalid=E.copy(g);invalid.members[2].targetMode=value;assert.throws(()=>E.checkData(invalid),/以上.*以内/);}
 for(const value of [-1,301,1.5]){const invalid=E.copy(g);invalid.months[month].targets.s3=value;assert.throws(()=>E.checkData(invalid),/今月の勤務時間目安/);}
 for(const weekdays of [[0,0],[-1],[7],[1.5]]){const invalid=E.copy(g);invalid.members[2].weekdays=weekdays;assert.throws(()=>E.checkData(invalid),/勤務可能曜日/);}
 console.log('PASS: B unrestricted, exact C2/D1 checks, legacy B/C/D overrides ignored, generation, protected requests/fixed shifts, fixed excess and shortage reporting');
