@@ -11,14 +11,14 @@ assert.equal(E.parseMemberPrompt().notes.length,0);assert(E.parseMemberPrompt(nu
 assert(E.parseMemberPrompt('あ'.repeat(2001)).errors.length);
 const month='2026-10',s=E.fresh(),m=E.month(s,month),p=s.members[2];
 for(const member of s.members)member.night=false;
-p.night=true;p.nightMax=15;p.memberPrompt='夜勤専門です\n担当者確認済み';
+p.start='2025-01-01';p.night=true;p.nightMax=15;p.memberPrompt='夜勤専門です\n担当者確認済み';
 m.requests['s3:5']='F';m.requests['s3:10']='E';
 E.generate(s,month);
 const codes=Array.from({length:E.days(month)},(_,i)=>m.schedule[E.key(p.id,i+1)]);
 assert(codes.includes('D'));assert(codes.every(c=>['D','d','E','F'].includes(c)));
 assert.equal(m.schedule['s3:5'],'F');assert.equal(m.schedule['s3:10'],'E');assert(!E.validate(s,month).some(x=>x.type==='personal'));
 m.schedule['s3:4']='B';assert(E.validate(s,month).some(x=>x.type==='personal'&&x.d===4));m.locks['s3:4']=true;
-const before=JSON.stringify(s);assert.throws(()=>E.generate(s,month),/夜勤専門と固定勤務/);assert.equal(JSON.stringify(s),before);
+const before=JSON.stringify(s);assert.throws(()=>E.generate(s,month),/勤務区分と固定勤務/);assert.equal(JSON.stringify(s),before);
 for(const hours of [6,14]){
  const g=E.fresh(),gm=E.month(g,month);g.members[0].memberPrompt='G勤務：可能';g.members[0].target=hours;gm.requests['s1:1']='E';E.generate(g,month);
  const values=Object.entries(gm.schedule).filter(([k])=>k.startsWith('s1:')).map(([,c])=>c);

@@ -4,7 +4,7 @@ let seed=123;Math.random=()=>((seed=(seed*1664525+1013904223)>>>0)/4294967296);
 const s=E.fresh(),m='2026-10',r=E.month(s,m),p=s.members[2];
 p.night=false;p.target=40;p.start='2025-01-01';r.rules.D=0;
 for(const day of [3,12,24])r.requests[E.key(p.id,day)]='W';
-r.requests['s4:10']='E';r.requests['s5:10']='F';
+r.requests['s4:10']='E';r.requests['s5:10']='F';s.members[4].start='2025-01-01';
 r.schedule['s6:8']='B';r.locks['s6:8']=true;
 E.generate(s,m);
 for(const day of [3,12,24])assert(E.works(r.schedule[E.key(p.id,day)]),'requested day gets priority: '+day);

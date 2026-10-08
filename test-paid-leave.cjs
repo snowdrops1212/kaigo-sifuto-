@@ -1,6 +1,9 @@
 const assert=require('node:assert/strict'),E=require('./dist/engine.js');
 const s=E.fresh(),p=s.members[2],id=p.id;p.start='2025-04-15';
 assert.deepEqual(E.paidLeavePeriod(p,'2026-10-14'),{asOf:'2026-10-14',firstStart:'2025-10-15',start:'2025-10-15',end:'2026-10-14',status:'ready'});
+assert.equal(E.paidLeaveEligibility(p,'2025-10-14').allowed,false);assert(E.paidLeaveEligibility(p,'2025-10-14').reason.includes('2025-10-15'));
+assert.equal(E.paidLeaveEligibility(p,'2025-10-15').allowed,true);
+assert.equal(E.paidLeaveEligibility({start:''},'2026-10-01').allowed,false);assert(E.paidLeaveEligibility({start:''},'2026-10-01').reason.includes('入職日'));
 assert.equal(E.paidLeavePeriod(p,'2026-10-15').start,'2026-10-15');
 assert.equal(E.paidLeavePeriod(p,'2025-10-14').status,'notStarted');
 assert.equal(E.annualPaidLeave(s,'2025-09',id).total,0);

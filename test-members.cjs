@@ -35,6 +35,21 @@ for(const [m,r] of Object.entries(s.months)){
  for(const field of ['rules','daily','meetings','generated','conditionPrompt','appliedConditionPrompt'])assert.deepEqual(r[field],before.months[m][field]);
 }
 assert.deepEqual(E.checkData(JSON.parse(JSON.stringify(s))),s);
+const importBase=E.fresh();E.month(importBase,'2028-02');
+for(const [label,mutate] of [
+ ['希望',x=>x.months['2028-02'].requests['missing:1']='E'],
+ ['勤務',x=>x.months['2028-02'].schedule['missing:1']='B'],
+ ['固定',x=>x.months['2028-02'].locks['missing:1']=true],
+ ['前月末',x=>x.months['2028-02'].previous.missing='D'],
+ ['時間目安',x=>x.months['2028-02'].targets.missing=160]
+]){const invalid=E.copy(importBase);mutate(invalid);assert.throws(()=>E.checkData(invalid),/登録されていない職員/,label);}
+for(const badKey of ['s1:0','s1:30','s1:abc','s1:1:2']){const invalid=E.copy(importBase);invalid.months['2028-02'].schedule[badKey]='B';assert.throws(()=>E.checkData(invalid),/日付|職員ID/,badKey);}
+const exactId=E.copy(importBase);exactId.months['2028-02'].schedule['s10:1']='B';assert.deepEqual(E.checkData(exactId),exactId);
+for(const [field,value,pattern] of [['start','2026-02-30',/職員の開始日/],['end','2026-13-01',/職員の終了日/],['start',123,/職員の開始日/]]){const invalid=E.copy(importBase);invalid.members[0][field]=value;assert.throws(()=>E.checkData(invalid),pattern);}
+const reversed=E.copy(importBase);reversed.members[0].start='2026-10-02';reversed.members[0].end='2026-10-01';assert.throws(()=>E.checkData(reversed),/終了日は開始日以降/);
+const leapDates=E.copy(importBase);leapDates.members[0].start='2028-02-29';leapDates.members[0].end='2028-02-29';assert.deepEqual(E.checkData(leapDates),leapDates);
+const invalidUser=E.copy(importBase);invalidUser.users=[{id:'u1',name:'利用者',type:'通い',weekdays:[1],start:'2026-02-30',end:''}];assert.throws(()=>E.checkData(invalidUser),/利用者の開始日/);
+const legacyDates=E.copy(importBase);delete legacyDates.members[0].start;delete legacyDates.members[0].end;E.checkData(legacyDates);assert.equal(legacyDates.members[0].start,'');assert.equal(legacyDates.members[0].end,'');
 assert.equal(E.annualPaidLeave(s,'2026-12','s1').total,null);assert.deepEqual(E.annualPaidLeave(s,'2026-12','s10'),retainedPaid);
 assert.equal(E.dailyCounts(s,'2026-12')[2].counts.B,0);assert.equal(E.dailyCounts(s,'2026-12')[2].counts.G,1);
 assert(E.meetingConflicts(s,'2026-12').some(x=>x.text.includes('管理者が未登録')));
@@ -42,4 +57,4 @@ const removedSnapshot=JSON.stringify(s);assert.throws(()=>E.generate(s,'2026-12'
 for(const p of [...s.members])assert.equal(E.removeMember(s,p.id),true);
 assert.equal(s.members.length,0);assert.equal(Object.keys(s.months['2026-12'].schedule).length,0);
 assert.deepEqual(E.checkData(E.copy(s)),s);assert(E.dailyCounts(s,'2026-12').every(row=>Object.values(row.counts).every(c=>c===0)));
-console.log('PASS: deletion preview counts, all-month data cleanup, exact member-ID scope, other staff/conditions/meetings/users preserved, saved-data roundtrip, annual totals, counts, missing manager and last-member removal');
+console.log('PASS: deletion preview counts, all-month data cleanup, exact member-ID scope, imported orphan/cell/date/period rejection, legacy dates, other staff/conditions/meetings/users preserved, saved-data roundtrip, annual totals, counts, missing manager and last-member removal');

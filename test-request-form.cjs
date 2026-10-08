@@ -2,7 +2,9 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('nod
 const elements=new Map();const el=key=>{if(!elements.has(key))elements.set(key,{value:'',style:{},innerHTML:'',focus(){this.focused=true;},scrollIntoView(){this.scrolled=true;},closest(){return {scrollLeft:0,scrollTop:0};},insertAdjacentHTML(pos,html){this.innerHTML+=html;},classList:{toggle(){}},setAttribute(){}});return elements.get(key);};
 const document={querySelector(s){return el(s);},querySelectorAll(){return [];},addEventListener(){}};
 const ctx=vm.createContext({ShiftEngine:E,ShiftConditions:require('./dist/conditions.js'),document,window:{addEventListener(){}},setTimeout(){return 1;},clearTimeout(){},console});
-vm.runInContext(fs.readFileSync('./dist/app.js','utf8'),ctx);
+for(const file of ['app-core.js','app-requests.js','app-schedule.js','app-members.js','app.js']){
+ vm.runInContext(fs.readFileSync('./dist/'+file,'utf8'),ctx,{filename:file});
+}
 const run=code=>vm.runInContext(code,ctx);
 assert.equal(run('tab'),'schedule');
 const pageHTML=fs.readFileSync('./dist/index.html','utf8');
@@ -17,6 +19,7 @@ assert.equal((el('#content').innerHTML.match(/id="request-form"/g)||[]).length,1
 assert(!el('#content').innerHTML.match(/id="request-date"[^>]+(?:min|max)=/));
 el('#request-kind').onchange({target:{value:'F'}});
 run("requestPerson='s3'");
+run("state.members.find(p=>p.id==='s3').start='2025-01-01'");
 el('#request-date').value='2026-11-12';
 const submit=()=>el('#request-form').onsubmit({preventDefault(){},target:{reportValidity(){return true;}}});
 submit();
@@ -55,7 +58,7 @@ assert(!el('#content').innerHTML.includes('request-grid'));assert.equal((el('#co
 assert.equal((el('#content').innerHTML.match(/id="undo"/g)||[]).length,1);
 console.log('PASS: form on both schedule states, cross-month Nov/Dec registration, date restrictions removed, invalid date/tenure, deduplication, shared data and fixed shifts preserved');
 
-const ruleInput={dataset:{rule:'D'},value:'3',checkValidity(){return true;},reportValidity(){}};
+const ruleInput={dataset:{rule:'off'},value:'8',checkValidity(){return true;},reportValidity(){}};
 const targetInput={dataset:{target:'s1'},value:'160',checkValidity(){return true;},reportValidity(){}};
 const previousInput={dataset:{previous:'s1'},value:'D'};
 run("mo().daily[4]={C:4};state.users=[{id:'u1',name:'利用者テスト',type:'通い',weekdays:[1,2],start:'',end:''}]");
@@ -65,7 +68,7 @@ run("tab='members';render()");
 let membersHTML=el('#content').innerHTML;
 assert(!membersHTML.includes('data-rule="maxRun"'));assert(!membersHTML.includes('連続勤務の上限（日）'));
 assert.equal(run('mo().rules.maxRun'),5,'removing the numeric control preserves the existing scheduling rule');
-assert(membersHTML.includes('data-rule="D"'));assert(membersHTML.includes('data-rule="off"'));
+assert(!membersHTML.includes('data-rule="D"'));assert(membersHTML.includes('id="staffing-d" readonly value="1人"'));assert(membersHTML.includes('data-rule="off"'));
 assert(membersHTML.startsWith('<div class="panel" id="monthly-conditions">'));
 assert(membersHTML.indexOf('今月の作成条件')<membersHTML.indexOf('シフトを組む条件・プロンプト'));
 assert.equal((membersHTML.match(/id="generate"/g)||[]).length,1);
@@ -73,22 +76,22 @@ assert.equal(el('#generate').onclick,run('startGenerate'));
 assert(!membersHTML.includes('id="add-user"'));assert(!membersHTML.includes('data-user='));assert(!membersHTML.includes('data-daily='));assert(!membersHTML.includes('class="coverage"'));assert(!membersHTML.includes('日ごとの利用予定・必要人数を変更する'));assert(!membersHTML.includes('class="two-col"'));assert(membersHTML.includes('id="add-member"'));assert(membersHTML.includes('職員ごとの今月の時間・前月末の勤務'));
 assert.equal(run('JSON.stringify({users:state.users,daily:mo().daily})'),preservedHiddenData);
 ruleInput.onchange();targetInput.onchange();previousInput.onchange();
-assert.equal(run('mo().rules.D'),3);assert.equal(run('mo().targets.s1'),160);assert.equal(run('mo().previous.s1'),'D');assert.equal(run('mo().daily[4].C'),4);
+assert.equal(run('mo().rules.off'),8);assert.equal(run('mo().rules.D'),1);assert.equal(run('mo().targets.s1'),160);assert.equal(run('mo().previous.s1'),'D');assert.equal(run('mo().daily[4].C'),4);
 const retainedRequests=run('JSON.stringify(mo().requests)'),retainedSchedule=run('JSON.stringify(mo().schedule)');
 el('#condition-to-month').onclick();assert.equal(run('tab'),'members');assert.equal(el('#monthly-conditions').scrolled,true);
 run("tab='schedule';render();tab='members';render()");
 assert.equal(run('JSON.stringify(mo().requests)'),retainedRequests);assert.equal(run('JSON.stringify(mo().schedule)'),retainedSchedule);
-assert(el('#content').innerHTML.includes('data-rule="D" min="0" max="31" value="3"'));
+assert(el('#content').innerHTML.includes('data-rule="off" min="0" max="31" value="8"'));
 run("tab='members';current='2027-01';render()");
 assert.equal(run('mo().rules.D'),1);
-run("current='2026-12';render()");assert.equal(run('mo().rules.D'),3);
-console.log('PASS: monthly conditions at top of staff page, rules/targets/prior controls and preserved hidden daily/user data, generation binding, month isolation and removal of old page without data loss');
+run("current='2026-12';render()");assert.equal(run('mo().rules.D'),1);assert.equal(run('mo().rules.off'),8);
+console.log('PASS: monthly fixed B/C/D conditions, editable holiday/targets/prior controls, preserved hidden data, generation binding and month isolation');
 
 const editor=el('#editor');
 editor.showModal=function(){this.open=true;};editor.close=function(){this.open=false;};
 let calendarDays=[];
 editor.querySelectorAll=()=>{calendarDays=[...editor.innerHTML.matchAll(/data-picker-day="(\d+)"/g)].map(m=>({dataset:{pickerDay:m[1]}}));return calendarDays;};
-run("tab='schedule';current='2026-10';requestPerson='s4';requestKind='F';render()");
+run("tab='schedule';current='2026-10';requestPerson='s4';requestKind='F';state.members.find(p=>p.id==='s4').start='2025-01-01';render()");
 el('#request-date').value='2026/10/01';
 const beforePicker=run('JSON.stringify(state)'),beforePickerUndo=run('undo.length');
 el('#open-request-calendar').onclick();assert.equal(editor.open,true);assert.equal(run('requestCalendarMonth'),'2026-10');
@@ -150,7 +153,7 @@ run("scheduleExpanded=true;tab='members';render()");assert.equal(run('scheduleEx
 run("tab='schedule';render()");
 console.log('PASS: height-only scaling, horizontal scroll retained, expanded/zoom/fit controls and data/undo preservation');
 
-run("state=E.fresh();current='2026-10';tab='schedule';requestPerson='s3';requestKind='E';undo=[];redo=[];render()");
+run("state=E.fresh();state.members.find(p=>p.id==='s3').start='2025-01-01';current='2026-10';tab='schedule';requestPerson='s3';requestKind='E';undo=[];redo=[];render()");
 assert(run('requestSummary()').includes('この月の希望休・有給・出勤希望はまだ登録されていません。'));
 for(const date of ['2026-10-20','2026-10-03']){el('#request-date').value=date;submit();}
 el('#request-kind').onchange({target:{value:'F'}});el('#request-date').value='2026-10-07';submit();
@@ -237,14 +240,17 @@ console.log('PASS: per-member delete controls, confirmation counts/warnings, can
 run("state=E.fresh();current='2026-10';tab='members';mo().rules.B=4;mo().rules.C=3;mo().daily[1]={B:8,C:5,D:2};mo().conditionPrompt='【自動反映する設定】\\nBの最低人数：4人\\nCの最低人数：3人\\nDの最低人数：1人\\n連続勤務の上限：5日\\n休日の目安：9日\\n【メモ】\\n個別のメモを保持';mo().appliedConditionPrompt=mo().conditionPrompt;render()");
 assert(el('#content').innerHTML.includes('id="staffing-b" readonly value="制限なし"'));
 assert(el('#content').innerHTML.includes('id="staffing-c" readonly value="2人"'));
-assert(!el('#content').innerHTML.includes('data-rule="B"'));assert(!el('#content').innerHTML.includes('data-rule="C"'));
+assert(el('#content').innerHTML.includes('id="staffing-d" readonly value="1人"'));
+assert(!el('#content').innerHTML.includes('data-rule="B"'));assert(!el('#content').innerHTML.includes('data-rule="C"'));assert(!el('#content').innerHTML.includes('data-rule="D"'));
 assert(run('conditionSnapshot()').includes('B 8人（旧設定・適用しない）'));
+assert(run('conditionSnapshot()').includes('D 2人（旧設定・適用しない）'));
 assert(run('mo().conditionPrompt').includes('Bの人数：制限なし'));assert(run('mo().conditionPrompt').includes('Cの人数：2人'));
+assert(run('mo().conditionPrompt').includes('Dの人数：1人'));
 assert(run('mo().conditionPrompt').includes('個別のメモを保持'));assert.equal(run('mo().conditionPrompt'),run('mo().appliedConditionPrompt'));
 assert(el('#condition-preview').innerHTML.includes('制限なし（固定）'));assert.equal(el('#apply-condition-prompt').disabled,false);
 run("mo().conditionPrompt=mo().conditionPrompt.replace('Cの人数：2人','Cの人数：3人');updateConditionPreview()");
 assert.equal(el('#apply-condition-prompt').disabled,true);
-console.log('PASS: fixed B/C controls, legacy prompt upgrade with notes and pending state preserved, effective snapshot, fixed policy preview and invalid C prompt rejected');
+console.log('PASS: fixed B/C/D controls, legacy prompt upgrade with notes and pending state preserved, effective snapshot and invalid fixed prompt rejected');
 ctx.crypto={randomUUID:()=> 'personal-test'};
 ctx.FormData=class{constructor(form){this.values=form.values;}get(name){return this.values[name]??'';}getAll(name){return this.values[name]??[];}};
 editor.querySelector=s=>el('editor '+s);
@@ -252,10 +258,14 @@ const exampleButtons=[{dataset:{personalExample:'G勤務：可能'}},{dataset:{p
 editor.querySelectorAll=s=>s==='[data-personal-example]'?exampleButtons:[];
 run("state=E.fresh();current='2026-10';tab='members';undo=[];redo=[];mo().schedule['s3:1']='B';render();memberForm('s3')");
 assert(editor.innerHTML.includes('name="memberPrompt"'));assert(editor.innerHTML.includes('maxlength="2000"'));assert(editor.innerHTML.includes('メモとして保存'));
+assert(editor.innerHTML.includes('name="employmentType"'));assert(editor.innerHTML.includes('name="usesI"'));assert(editor.innerHTML.includes('I勤務はパート専用'));assert(editor.innerHTML.includes('I勤務者は月9日休み'));
+assert(editor.innerHTML.includes('id="paid-leave-preview"'));assert(el('#paid-leave-preview').innerHTML.includes('入職日を入力'));
+el('#person-form input[name="start"]').value='2026-01-15';el('#person-form input[name="start"]').oninput();
+assert(el('#paid-leave-preview').innerHTML.includes('2026-07-15'));assert(el('#paid-leave-preview').innerHTML.includes('2027-07-14'));
 el('#member-prompt').value='担当者のメモ';el('#person-form select[name="night"]').value='yes';
 exampleButtons[0].onclick();assert.equal(el('#member-prompt').value,'担当者のメモ\nG勤務：可能');exampleButtons[0].onclick();assert.equal((el('#member-prompt').value.match(/G勤務：可能/g)||[]).length,1);
 assert(el('#member-prompt-preview').innerHTML.includes('G（6時間）'));assert(el('#member-prompt-preview').innerHTML.includes('メモのみ（自動適用しない）'));
-const values={name:'個別条件テスト',role:'介護職員',night:'yes',nightMax:'7',target:'14',start:'',end:'',weekdays:['0','1','2','3','4','5','6'],memberPrompt:el('#member-prompt').value};
+const values={name:'個別条件テスト',role:'介護職員',employmentType:'full',usesI:'no',night:'yes',nightMax:'7',target:'14',start:'',end:'',weekdays:['0','1','2','3','4','5','6'],memberPrompt:el('#member-prompt').value};
 const submitPerson=()=>el('#person-form').onsubmit({preventDefault(){},target:{values}});
 submitPerson();assert.equal(run("state.members.find(p=>p.id==='s3').memberPrompt"),values.memberPrompt);assert.equal(run("mo().schedule['s3:1']"),'B');assert.equal(editor.open,false);
 assert(el('#content').innerHTML.includes('担当者のメモ'));assert(run('conditionSnapshot()').includes('G勤務が可能'));run('revert(false)');assert.equal(run("state.members.find(p=>p.id==='s3').memberPrompt"),undefined);run('revert(true)');
@@ -265,6 +275,12 @@ values.night='yes';values.memberPrompt='夜勤専門\nG勤務：可能';submitPe
 values.memberPrompt='夜勤専門\n<img src=x onerror=alert(1)>';submitPerson();run("memberForm('s3')");assert(!editor.innerHTML.includes('<img'));assert(editor.innerHTML.includes('&lt;img'));editor.querySelector('.cancel').onclick();
 run('memberForm()');values.name='追加職員テスト';values.memberPrompt='G勤務：可能';values.night='no';submitPerson();assert.equal(run("state.members.find(p=>p.id==='spersonal-test').memberPrompt"),'G勤務：可能');
 console.log('PASS: staff prompt add/edit/save/reopen, examples without duplicate insertion, live applied/notes preview, validation, escaping, undo/redo, condition snapshot and existing shifts unchanged');
+
+editor.querySelectorAll=()=>[];
+run("state=E.fresh();current='2026-10';tab='schedule';undo=[];redo=[];mo().generated=true;mo().schedule['s3:10']='D';mo().schedule['s3:11']='d';mo().schedule['s3:12']='E';mo().schedule['s4:10']='B';mo().schedule['s4:11']='B';mo().schedule['s4:12']='B';render();editCell('s3',10)");
+el('#swap-person').value='s4';const nightSwapBefore=run('JSON.stringify(mo().schedule)');el('#swap').onclick();assert.equal(run('JSON.stringify(mo().schedule)'),nightSwapBefore);assert(el('#toast').textContent.includes('同じ職員が3日連続'));
+run("editCell('s4',11)");el('#swap-person').value='s3';el('#swap').onclick();assert.equal(run('JSON.stringify(mo().schedule)'),nightSwapBefore);assert(el('#toast').textContent.includes('勤務交換できません'));
+console.log('PASS: D-d-E remains assigned to one person and every shift in the three-day sequence is excluded from swaps');
 
 run("state=E.fresh();current='2026-10';tab='schedule';undo=[];redo=[];requestPerson='s3';requestKind='E';render()");
 assert(el('#content').innerHTML.includes('<option value="W"'));
@@ -276,12 +292,21 @@ assert(run('conditionSnapshot()').includes('20日出勤希望'));
 const workSaved=run('JSON.stringify(state)');run('state=E.checkData(JSON.parse(JSON.stringify(state)));render()');assert.equal(run('JSON.stringify(state)'),workSaved);
 const workUndo=run('undo.length');submit();assert.equal(run('undo.length'),workUndo);
 run("mo().schedule['s3:20']='E';mo().locks['s3:20']=true;mo().generated=true;render()");
+assert(run("paidBadge(state.members[2])").includes('入職日未設定'));assert(!run("paidBadge(state.members[2])").includes('<strong>0</strong>'));
 el('#request-kind').onchange({target:{value:'F'}});el('#request-date').value='2026-11-20';submit();
+assert.equal(run("mo().requests['s3:20']"),'W');assert(el('#toast').textContent.includes('入職日'));
+run("state.members[2].start='2026-01-15'");submit();
 assert.equal(run("mo().requests['s3:20']"),'F');assert.equal(run("mo().schedule['s3:20']"),'E');assert.equal(run("mo().locks['s3:20']"),true);
 run('revert(false)');assert.equal(run("mo().requests['s3:20']"),'W');run('revert(true)');assert.equal(run("mo().requests['s3:20']"),'F');
-assert(run("paidBadge(state.members[2])").includes('入職日未設定'));assert(!run("paidBadge(state.members[2])").includes('<strong>0</strong>'));
-run("state.members[2].start='2026-01-15'");
 assert(run("paidBadge(state.members[2])").includes('2026-07-15〜2027-07-14'));assert(run("paidBadge(state.members[2])").includes('<strong>1</strong>'));
 run("current='2026-06'");assert(run("paidBadge(state.members[2])").includes('集計開始前'));
 assert(run('paidYearNote()').includes('入職日の6か月後'));assert(run('paidYearNote()').includes('表示月の末日'));
 console.log('PASS: shared work-request selector/date, cross-month registration, summary and snapshot, type replacement, JSON, undo/redo, fixed data preserved and personal paid-period badges');
+
+run("state=E.fresh();current='2026-10';undo=[];redo=[];state.members[2].start='2026-04-15';render()");
+assert.throws(()=>run("setShiftRequestsFromAgent({memberId:'s3',days:[20,10],type:'F'})"),/6か月後/);
+assert.equal(run("mo().requests['s3:20']"),undefined);assert.equal(run("mo().requests['s3:10']"),undefined);
+run("state.members[2].start='2026-01-15'");
+assert.equal(run("setShiftRequestsFromAgent({memberId:'s3',days:[10,20],type:'F'}).registered"),2);
+assert.equal(run("mo().requests['s3:10']"),'F');assert.equal(run("mo().requests['s3:20']"),'F');
+console.log('PASS: agent request registration enforces the same paid-leave eligibility as the visible form and remains atomic on rejection');
