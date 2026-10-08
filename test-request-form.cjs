@@ -3,7 +3,8 @@ const elements=new Map();const el=key=>{if(!elements.has(key))elements.set(key,{
 const document={querySelector(s){return el(s);},querySelectorAll(){return [];},addEventListener(){}};
 let printCalls=0;
 const stored=new Map(),localStorage={getItem:key=>stored.get(key)??null,setItem:(key,value)=>stored.set(key,String(value))};
-const ctx=vm.createContext({ShiftEngine:E,ShiftConditions:require('./dist/conditions.js'),document,window:{addEventListener(){},print(){printCalls++;}},localStorage,setTimeout(){return 1;},clearTimeout(){},console});
+const windowListeners={},windowMock={addEventListener(type,handler){(windowListeners[type]??=[]).push(handler);},print(){printCalls++;}};
+const ctx=vm.createContext({ShiftEngine:E,ShiftConditions:require('./dist/conditions.js'),document,window:windowMock,localStorage,setTimeout(){return 1;},clearTimeout(){},console});
 for(const file of ['app-core.js','app-requests.js','app-schedule.js','app-members.js','app.js']){
  vm.runInContext(fs.readFileSync('./dist/'+file,'utf8'),ctx,{filename:file});
 }
@@ -285,6 +286,11 @@ const submitPerson=()=>el('#person-form').onsubmit({preventDefault(){},target:{v
 submitPerson();assert.equal(run("state.members.find(p=>p.id==='s3').memberPrompt"),values.memberPrompt);assert.equal(run("state.members.find(p=>p.id==='s3').targetMode"),'min');assert.equal(run("mo().schedule['s3:1']"),'B');assert.equal(editor.open,false);
 assert.equal(JSON.parse(localStorage.getItem('akari-shift-state-v1')).members.find(p=>p.id==='s3').memberPrompt,values.memberPrompt,'職員編集をブラウザへ自動保存する');
 run("state=E.fresh();state=loadPersistedState();render()");assert.equal(run("state.members.find(p=>p.id==='s3').memberPrompt"),values.memberPrompt,'再読み込み時に職員情報を復元する');
+const persistenceBaseline=run('JSON.stringify(state)'),undoBaseline=run('JSON.stringify(undo)'),redoBaseline=run('JSON.stringify(redo)'),storedBaseline=localStorage.getItem('akari-shift-state-v1');
+const damagedStored=JSON.parse(storedBaseline);damagedStored.members.find(p=>p.id==='s3').name='破損月から復元した職員';damagedStored.months['2026-10'].schedule['s3:1']='A';stored.set('akari-shift-state-v1',JSON.stringify(damagedStored));stored.delete('akari-shift-state-v1-backup');stored.delete('akari-shift-state-v1-backup-2');assert.equal(run("loadPersistedState().members.find(p=>p.id==='s3').name"),'破損月から復元した職員','月データが古くても職員情報を救出する');assert.equal(JSON.parse(localStorage.getItem('akari-shift-state-v1')).members.find(p=>p.id==='s3').name,'破損月から復元した職員','復元した職員情報を次回用に保存し直す');assert.equal(JSON.parse(localStorage.getItem('akari-shift-state-v1-backup-2')).months['2026-10'].schedule['s3:1'],'A','復元前データも退避する');
+stored.set('akari-shift-state-v1',storedBaseline);run("state.members.find(p=>p.id==='s3').name='バックアップ前';persistState();state.members.find(p=>p.id==='s3').name='バックアップ後';persistState()");assert.equal(JSON.parse(localStorage.getItem('akari-shift-state-v1-backup')).members.find(p=>p.id==='s3').name,'バックアップ前','上書き前の職員情報を自動バックアップする');
+const remoteState=JSON.parse(localStorage.getItem('akari-shift-state-v1'));remoteState.members.find(p=>p.id==='s3').name='別タブで編集した職員';for(const handler of windowListeners.storage||[])handler({key:'akari-shift-state-v1',newValue:JSON.stringify(remoteState),storageArea:localStorage});assert.equal(run("state.members.find(p=>p.id==='s3').name"),'別タブで編集した職員','別タブの職員編集を同期する');
+run(`state=JSON.parse(${JSON.stringify(persistenceBaseline)});undo=JSON.parse(${JSON.stringify(undoBaseline)});redo=JSON.parse(${JSON.stringify(redoBaseline)});persistState();render()`);
 assert.equal(run("memberPromptSummary('担当者のメモ\\nG勤務：可能')"),'担当者のメモ / G勤務：可能');assert(el('#content').innerHTML.includes('個別メモ・勤務条件：<span class="member-note-value" title="担当者のメモ / G勤務：可能">担当者のメモ / G勤務：可能</span>'));assert(run('conditionSnapshot()').includes('G勤務が可能'));assert(run('conditionSnapshot()').includes('14時間以上'));run('revert(false)');assert.equal(run("state.members.find(p=>p.id==='s3').memberPrompt"),undefined);run('revert(true)');
 run("memberForm('s3')");assert(editor.innerHTML.includes('担当者のメモ'));assert(editor.innerHTML.includes('value="min" checked'));const existing=run('JSON.stringify(state)');
 values.memberPrompt='夜勤専門';values.night='no';submitPerson();assert.equal(run('JSON.stringify(state)'),existing);assert(el('#form-error').textContent.includes('「可能」'));assert.equal(editor.open,true);
