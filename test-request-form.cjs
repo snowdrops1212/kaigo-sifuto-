@@ -288,10 +288,10 @@ console.log('PASS: fixed B/C/D controls, legacy prompt upgrade with notes and pe
 ctx.crypto={randomUUID:()=> 'personal-test'};
 ctx.FormData=class{constructor(form){this.values=form.values;}get(name){return this.values[name]??'';}getAll(name){return this.values[name]??[];}};
 editor.querySelector=s=>el('editor '+s);
-const exampleButtons=[{dataset:{personalExample:'G勤務：可能'}},{dataset:{personalExample:'勤務区分：夜勤専門'}}];
+const exampleButtons=[{dataset:{personalExample:'Gのみ勤務可能'}},{dataset:{personalExample:'G勤務：可能'}},{dataset:{personalExample:'勤務区分：夜勤専門'}}];
 editor.querySelectorAll=s=>s==='[data-personal-example]'?exampleButtons:[];
 run("state=E.fresh();current='2026-10';tab='members';undo=[];redo=[];mo().schedule['s3:1']='B';render();memberForm('s3')");
-assert(editor.innerHTML.includes('name="memberPrompt"'));assert(editor.innerHTML.includes('maxlength="2000"'));assert(editor.innerHTML.includes('メモとして保存'));
+assert(editor.innerHTML.includes('name="memberPrompt"'));assert(editor.innerHTML.includes('maxlength="2000"'));assert(editor.innerHTML.includes('自動作成を停止'));
 assert(editor.innerHTML.includes('name="employmentType"'));assert(editor.innerHTML.includes('name="usesI"'));assert(editor.innerHTML.includes('I勤務はパート専用'));assert(editor.innerHTML.includes('I勤務者は月9日休み'));
 assert(el('#person-form select[name="role"]').innerHTML.includes('value="__custom__"'));assert(el('#person-form select[name="role"]').innerHTML.includes('>手書き</option>'));assert(el('#person-form select[name="role"]').innerHTML.includes('次回から選択肢に残ります'));
 el('#person-form select[name="role"]').value='__custom__';el('#person-form select[name="role"]').onchange();assert.equal(el('#custom-role-field').hidden,false);assert.equal(el('#custom-role').required,true);el('#person-form select[name="role"]').value='介護職員';el('#person-form select[name="role"]').onchange();assert.equal(el('#custom-role-field').hidden,true);
@@ -302,8 +302,8 @@ assert(editor.innerHTML.includes('id="paid-leave-preview"'));assert(el('#paid-le
 el('#person-form input[name="start"]').value='2026-01-15';el('#person-form input[name="start"]').oninput();
 assert(el('#paid-leave-preview').innerHTML.includes('2026-07-15'));assert(el('#paid-leave-preview').innerHTML.includes('2027-07-14'));
 el('#member-prompt').value='担当者のメモ';el('#person-form select[name="night"]').value='yes';
-exampleButtons[0].onclick();assert.equal(el('#member-prompt').value,'担当者のメモ\nG勤務：可能');exampleButtons[0].onclick();assert.equal((el('#member-prompt').value.match(/G勤務：可能/g)||[]).length,1);
-assert(el('#member-prompt-preview').innerHTML.includes('G（6時間）'));assert(el('#member-prompt-preview').innerHTML.includes('メモのみ（自動適用しない）'));
+exampleButtons[0].onclick();assert.equal(el('#member-prompt').value,'担当者のメモ\nGのみ勤務可能');exampleButtons[0].onclick();assert.equal((el('#member-prompt').value.match(/Gのみ勤務可能/g)||[]).length,1);
+assert(el('#member-prompt-preview').innerHTML.includes('勤務を「G」だけに限定'));assert(el('#member-prompt-preview').innerHTML.includes('自動作成を停止'));
 const values={name:'個別条件テスト',role:'介護職員',employmentType:'full',usesI:'no',night:'yes',nightMax:'7',target:'14',targetMode:'min',start:'',end:'',weekdays:['0','1','2','3','4','5','6'],memberPrompt:el('#member-prompt').value};
 const submitPerson=()=>el('#person-form').onsubmit({preventDefault(){},target:{values}});
 submitPerson();assert.equal(run("state.members.find(p=>p.id==='s3').memberPrompt"),values.memberPrompt);assert.equal(run("state.members.find(p=>p.id==='s3').targetMode"),'min');assert.equal(run("mo().schedule['s3:1']"),'B');assert.equal(editor.open,false);
@@ -316,7 +316,7 @@ const damagedStored=JSON.parse(storedBaseline);damagedStored.members.find(p=>p.i
 stored.set('akari-shift-state-v1',storedBaseline);run("state.members.find(p=>p.id==='s3').name='バックアップ前';persistState();state.members.find(p=>p.id==='s3').name='バックアップ後';persistState()");assert.equal(JSON.parse(localStorage.getItem('akari-shift-state-v1-backup')).members.find(p=>p.id==='s3').name,'バックアップ前','上書き前の職員情報を自動バックアップする');
 const remoteState=JSON.parse(localStorage.getItem('akari-shift-state-v1'));remoteState.members.find(p=>p.id==='s3').name='別タブで編集した職員';for(const handler of windowListeners.storage||[])handler({key:'akari-shift-state-v1',newValue:JSON.stringify(remoteState),storageArea:localStorage});assert.equal(run("state.members.find(p=>p.id==='s3').name"),'別タブで編集した職員','別タブの職員編集を同期する');
 run(`state=JSON.parse(${JSON.stringify(persistenceBaseline)});undo=JSON.parse(${JSON.stringify(undoBaseline)});redo=JSON.parse(${JSON.stringify(redoBaseline)});persistState();render()`);
-assert.equal(run("memberPromptSummary('担当者のメモ\\nG勤務：可能')"),'担当者のメモ / G勤務：可能');assert(el('#content').innerHTML.includes('個別メモ・勤務条件：<span class="member-note-value" title="担当者のメモ / G勤務：可能">担当者のメモ / G勤務：可能</span>'));assert(run('conditionSnapshot()').includes('G勤務が可能'));assert(run('conditionSnapshot()').includes('14時間以上'));run('revert(false)');assert.equal(run("state.members.find(p=>p.id==='s3').memberPrompt"),undefined);run('revert(true)');
+assert.equal(run("memberPromptSummary('担当者のメモ\\nGのみ勤務可能')"),'担当者のメモ / Gのみ勤務可能');assert(el('#content').innerHTML.includes('個別メモ・勤務条件：<span class="member-note-value" title="担当者のメモ / Gのみ勤務可能">担当者のメモ / Gのみ勤務可能</span>'));assert(run('conditionSnapshot()').includes('勤務をGのみに限定'));assert(run('conditionSnapshot()').includes('未対応の重要メモあり'));assert(run('conditionSnapshot()').includes('14時間以上'));run('revert(false)');assert.equal(run("state.members.find(p=>p.id==='s3').memberPrompt"),undefined);run('revert(true)');
 run("memberForm('s3')");assert(editor.innerHTML.includes('担当者のメモ'));assert(editor.innerHTML.includes('value="min" checked'));const existing=run('JSON.stringify(state)');
 values.memberPrompt='夜勤専門';values.night='no';submitPerson();assert.equal(run('JSON.stringify(state)'),existing);assert(el('#form-error').textContent.includes('「可能」'));assert.equal(editor.open,true);
 values.night='yes';values.memberPrompt='夜勤専門\nG勤務：可能';submitPerson();assert.equal(run('JSON.stringify(state)'),existing);assert(el('#form-error').textContent.includes('併用できません'));

@@ -8,8 +8,8 @@ function conditionPanel(){
 function conditionSnapshot(){
  const m=mo(),lines=[current+' の現在の有効設定',ShiftConditions.settings(m.rules),'','職員ごとの条件（夜勤可否が優先。職種のみでは制限しません）'];
  for(const p of state.members)lines.push(p.name+'／'+p.role+'／'+(p.employmentType==='part'?'パート':'正社員')+(p.usesI?'・I勤務・月9日休':'')+'／'+(p.night?'夜勤可・月'+p.nightMax+'回まで':'夜勤不可')+'／勤務曜日：'+p.weekdays.map(w=>'日月火水木金土'[w]).join('・')+'／在籍：'+(p.start||'指定なし')+'〜'+(p.end||'指定なし')+'／今月の目安：'+E.target(p,m,n())+'時間'+E.targetModeLabel(p)+'／前月末：'+(E.prior(state,current,p)||'未指定'));
- lines.push('','職員専用の個別メモ・勤務条件（対応する定型文のみ自動適用）');
- for(const p of state.members)if(p.memberPrompt){const parsed=E.parseMemberPrompt(p.memberPrompt);lines.push(p.name+'：'+p.memberPrompt);lines.push('自動適用：'+(parsed.nightOnly?'夜勤専門':parsed.gAllowed?'G勤務が可能（残り6〜7時間でG候補）':'追加なし'));if(parsed.notes.length)lines.push('未対応の文章はメモのみ');}
+ lines.push('','職員専用の個別メモ・勤務条件（認識できる条件は必須適用。未対応文がある場合は自動作成を停止）');
+ for(const p of state.members)if(p.memberPrompt){const parsed=E.parseMemberPrompt(p.memberPrompt),applied=[...(parsed.onlyShifts.length?['勤務を'+parsed.onlyShifts.join('・')+'のみに限定']:[]),...(parsed.nightOnly?['夜勤専門']:[]),...(parsed.gAllowed?['G勤務が可能（残り6〜7時間でG候補）']:[])];lines.push(p.name+'：'+p.memberPrompt);lines.push('自動適用：'+(applied.join('／')||'追加なし'));if(parsed.notes.length)lines.push('未対応の重要メモあり：自動作成を停止して確認');}
  lines.push('',meetingConditionText(),'','希望休・有給・出勤希望（出勤希望を優先し、他の日も出勤可）');
  for(const p of state.members){const req=range().filter(d=>m.requests[k(p.id,d)]).map(d=>{const request=m.requests[k(p.id,d)],shift=request==='W'?m.workRequests[k(p.id,d)]||'':'';return d+'日'+(request==='W'?'出勤希望'+(shift?'（'+shift+' '+E.shifts[shift].label+'）':''):request==='E'?'希':'有');});if(req.length)lines.push(p.name+'：'+req.join('、'));}
  lines.push('登録合計：'+Object.keys(m.requests).length+'日分','','固定勤務');
@@ -53,15 +53,16 @@ function confirmMemberDelete(id){
 
 function personalConditionPreview(text,night){
  const parsed=E.parseMemberPrompt(text),errors=E.memberConditionErrors({night},parsed),lines=[];
+ if(parsed.onlyShifts.length)lines.push('必須条件：勤務を「'+parsed.onlyShifts.join('・')+'」だけに限定します。休日E・有給Fは利用できます。自動作成・手動変更・出勤希望のすべてで指定外の勤務を禁止します。');
  if(parsed.nightOnly)lines.push('夜勤専門：D・dのみ勤務。休日E・有給Fは利用できます。夜勤上限や勤務可能曜日は引き続き守ります。');
- if(parsed.gAllowed)lines.push('G勤務が可能：B・Cも候補です。月の時間目安まで残り6〜7時間の場合はG（6時間）を自動割当の候補にします。G専任の指定ではありません。');
+ if(parsed.gAllowed)lines.push('G勤務が可能：'+(parsed.onlyShifts.length?'限定勤務の条件を優先します。':'B・Cも候補です。月の時間目安まで残り6〜7時間の場合はG（6時間）を自動割当の候補にします。G専任の指定ではありません。'));
  if(!lines.length)lines.push('追加の自動割当条件はありません。');
  return '<strong>自動作成に反映する内容</strong><p>'+lines.map(esc).join('<br>')+'</p>'+
  (errors.length?'<p class="form-error">'+errors.map(esc).join('<br>')+'</p>':'')+
- (parsed.notes.length?'<p>メモのみ（自動適用しない）：</p><pre class="personal-note">'+esc(parsed.notes.join('\n'))+'</pre>':'');
+ (parsed.notes.length?'<p class="form-error"><strong>要確認：</strong>次の文章は自動判定できないため、この職員を含むシフトの自動作成を停止します。対応形式に直すか、内容を確認して手動で勤務を設定してください。</p><pre class="personal-note">'+esc(parsed.notes.join('\n'))+'</pre>':'');
 }
 function memberPromptFields(p){
- return '<section class="full personal-conditions"><label class="field" for="member-prompt">個別メモ・勤務条件（この職員専用）<textarea id="member-prompt" name="memberPrompt" rows="4" maxlength="2000" aria-describedby="member-prompt-help" placeholder="例：G勤務：可能">'+esc(p.memberPrompt||'')+'</textarea></label><div class="toolbar"><button type="button" data-personal-example="G勤務：可能">G勤務が可能を入力</button><button type="button" data-personal-example="勤務区分：夜勤専門">夜勤専門を入力</button></div><p id="member-prompt-help" class="subtle">1行に1条件、2,000文字まで。対応する定型文だけ自動反映します。それ以外はメモとして保存します。全月で共通の条件です。作成済みシフトは変更せず、再作成時に適用します。</p><div id="member-prompt-preview" role="status" aria-live="polite">'+personalConditionPreview(p.memberPrompt||'',p.night)+'</div></section>';
+ return '<section class="full personal-conditions"><label class="field" for="member-prompt">個別メモ・勤務条件（この職員専用・必ず確認）<textarea id="member-prompt" name="memberPrompt" rows="4" maxlength="2000" aria-describedby="member-prompt-help" placeholder="例：Gのみ勤務可能">'+esc(p.memberPrompt||'')+'</textarea></label><div class="toolbar"><button type="button" data-personal-example="Gのみ勤務可能">Gのみ勤務を入力</button><button type="button" data-personal-example="G勤務：可能">G勤務が可能を入力</button><button type="button" data-personal-example="勤務区分：夜勤専門">夜勤専門を入力</button></div><p id="member-prompt-help" class="subtle">1行に1条件、2,000文字まで。「Gのみ勤務可能」「B・Cのみ勤務可能」のような限定は必須条件として全月へ適用します。自動判定できない文章がある場合は、重要事項を無視しないよう自動作成を停止します。作成済みシフトは変更せず、再作成時に適用します。</p><div id="member-prompt-preview" role="status" aria-live="polite">'+personalConditionPreview(p.memberPrompt||'',p.night)+'</div></section>';
 }
 function bindMemberPrompt(){
  const input=$('#member-prompt'),night=$('#person-form select[name="night"]');
