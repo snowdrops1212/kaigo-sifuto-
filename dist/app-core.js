@@ -6,7 +6,7 @@ function loadPersistedState(){try{const saved=typeof localStorage!=='undefined'?
 function persistState(){try{if(typeof localStorage!=='undefined')localStorage.setItem(storageKey,JSON.stringify(state));return true;}catch(err){console.warn('自動保存できませんでした。',err);return false;}}
 let state=loadPersistedState(),current='2026-10',tab='schedule',undo=[],redo=[],dirty=false;
 let requestPerson='',requestKind='E',requestShift='B',requestDate='',meetingDate='';
-let scheduleFit=true,scheduleExpanded=false,scheduleResizeObserver;
+let scheduleFit=false,scheduleExpanded=false,scheduleResizeObserver;
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const mo=()=>E.month(state,current),n=()=>E.days(current),k=E.key,chip=c=>E.shifts[c]?.cls||'blank';
 function toast(t){$('#toast').textContent=t;$('#toast').style.display='block';clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('#toast').style.display='none',3500);}

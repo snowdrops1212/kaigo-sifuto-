@@ -92,84 +92,20 @@ body.schedule-expanded #schedule-viewport{flex:1;min-height:0;height:auto;max-he
 .request-summary-date.work-request{background:#e1f3ed;color:#16634c;border:1px solid #b4dace}
 
 @media screen{
- :root{--ink:#080808;--muted:#202020}
- body{color:#080808;font-size:19px;line-height:1.7}
- button,input,select,textarea{font-size:18px;color:#080808}
- button{min-height:50px;padding:11px 18px;font-size:18px}
- input,select{min-height:50px;padding:10px 12px}
- input::placeholder,textarea::placeholder{color:#383838;opacity:1}
- h1{font-size:34px;line-height:1.35}
- h2{font-size:28px;line-height:1.4}
- h3{font-size:22px}
- .brand strong{font-size:28px}.brand small,.sample,.eyebrow{font-size:16px;color:#111}
- .month-label,.field,.desc,.subtle,.legend,.note,footer,.util-note,.form-error{font-size:17px;color:#111}
- .field small,.person-role,thead th small{font-size:15px;color:#191919}
- nav{width:min(920px,100%)}nav button{min-height:64px;font-size:20px}nav span{inline-size:34px;block-size:34px;font-size:16px}
- .panel{padding:26px}.panel-head{margin-bottom:18px}
- .chip,.b,.c,.night,.off,.paid,.short{color:#000;font-size:17px;font-weight:700}
- table{font-size:17px}th,td{padding:10px}.person-name{font-size:18px;font-weight:700}.member-card-summary,.member-note,.personal-note{font-size:17px}.member-card{min-height:56px;padding:9px 0}
- .cell{min-width:46px;min-height:43px;font-size:18px;font-weight:700}
- .summary-row th,.summary-row td,.stat span,.issue-link{font-size:16px}.stat strong{font-size:30px}
- dialog{max-width:720px}dialog h2{font-size:29px}.choice strong{font-size:22px}.choice small{font-size:16px}
- .request-controls .field,.request-controls select,#request-date,#register-request,.request-date-input button{font-size:18px}.request-controls select,#request-date,#register-request,.request-date-input button{min-height:52px}
- #request-person{width:330px}#request-kind{width:240px}#request-shift{width:270px}#request-shift:disabled{color:#111;opacity:.7}
- .request-summary-compact,.request-summary-heading h3,.request-tags button,.details summary,.paid-year-note,.condition-snapshot,.condition-panel textarea,.equivalent-note{font-size:17px}
- .calendar .cal-week,.request-date-calendar .cal-week,.date-day{font-size:18px}.cal-day strong{font-size:22px}.cal-day small{font-size:15px}
- .daily-count-rows td,.daily-count-rows th .chip,.daily-count-rows .counts-heading th,.daily-count-rows .counts-heading td,.equivalent-row th,.equivalent-row td{font-size:17px}
- .equivalent-row small{font-size:14px}
- .annual-paid-badge{font-size:16px}.annual-paid-badge strong{font-size:21px}.paid-person-period{font-size:13px}
- .is-fit .schedule-grid{width:max(100%,2380px);font-size:17px;line-height:1.4}
- .is-fit .schedule-name-col{width:340px}.is-fit .schedule-day-col{width:56px}.is-fit .schedule-meta-col{width:118px}
- .is-fit .schedule-grid thead th,.is-fit .person-name,.is-fit .daily-count-rows td,.is-fit .daily-count-rows .chip,.is-fit .daily-count-rows .counts-heading th,.is-fit .daily-count-rows .counts-heading td,.is-fit .equivalent-row th,.is-fit .equivalent-row td{font-size:17px}
- .is-fit .schedule-grid thead th small,.is-fit .person-role,.is-fit .equivalent-row small{font-size:14px}
- .is-fit .schedule-grid .cell{height:40px;min-height:40px;font-size:18px}
- .is-fit .schedule-grid tbody:not(.daily-count-rows) td:nth-last-child(-n+3){font-size:15px}
-}
-@media screen and (max-width:800px){body{font-size:18px}h1{font-size:30px}h2{font-size:25px}nav button{font-size:18px}.panel{padding:18px}.month-label,.field,.desc,.subtle,.legend,.note,footer{font-size:16px}}
-
-/* Large, high-contrast screen mode requested for everyday operation. */
-@media screen{
- :root{--ink:#000;--muted:#000}
- body{color:#000;font-size:28px;line-height:1.65;font-weight:600}
- button,input,select,textarea{color:#000;font-size:26px;font-weight:600}
- button{min-height:66px;padding:14px 24px;font-size:26px;border-width:2px}
- input,select{min-height:66px;padding:13px 16px;border-width:2px}
- h1{font-size:48px;font-weight:800}h2{font-size:40px;font-weight:800}h3{font-size:32px;font-weight:800}
- .brand strong{font-size:40px;font-weight:800}.brand small,.sample,.eyebrow{font-size:22px;color:#000;font-weight:700}
- .mark{width:62px;height:62px;font-size:34px;line-height:62px}
- .month-label,.field,.desc,.subtle,.legend,.note,footer,.util-note,.form-error{font-size:25px;color:#000;font-weight:600}
- .field small,.person-role,thead th small{font-size:21px;color:#000;font-weight:600}
- nav{width:min(1180px,100%);padding:9px}nav button{min-height:82px;font-size:29px;font-weight:800}nav span{inline-size:46px;block-size:46px;font-size:21px}
- .panel{padding:34px;border-width:2px}.panel-head{margin-bottom:24px}
- .primary,nav button.active,.cal-day.selected,.date-day.selected,#toast,.mark{color:#fff}
- .chip,.b,.c,.night,.off,.paid,.short{color:#000;font-size:24px;font-weight:800}
- table{font-size:24px;font-weight:700}th,td{padding:14px}.person-name{font-size:27px;font-weight:800}.member-card-summary,.member-note,.personal-note{font-size:24px;font-weight:600}.member-card{min-height:76px;padding:13px 0}
- .cell{min-width:62px;min-height:58px;font-size:27px;font-weight:800;border-width:2px}
- .summary-row th,.summary-row td,.stat span,.issue-link{font-size:22px}.stat strong{font-size:42px}.stat{padding:22px 28px}
- dialog{max-width:980px;padding:34px}dialog h2{font-size:42px}.choice{min-height:92px}.choice strong{font-size:31px}.choice small{font-size:22px}
- .request-controls{gap:32px}.request-controls .field,.request-controls select,#request-date,#register-request,.request-date-input button{font-size:26px}.request-controls select,#request-date,#register-request,.request-date-input button{min-height:68px}
- #request-person{width:430px}#request-kind{width:320px}#request-shift{width:390px}#request-shift:disabled{color:#000;opacity:.72}
- .request-summary-compact,.request-summary-heading h3,.request-tags button,.details summary,.paid-year-note,.condition-snapshot,.condition-panel textarea,.equivalent-note{font-size:24px;font-weight:600}
- .condition-panel textarea{line-height:1.75}.calendar .cal-week,.request-date-calendar .cal-week,.date-day{font-size:25px}.cal-day{height:94px}.cal-day strong{font-size:31px}.cal-day small{font-size:21px}
- .daily-count-rows td,.daily-count-rows th .chip,.daily-count-rows .counts-heading th,.daily-count-rows .counts-heading td,.equivalent-row th,.equivalent-row td{font-size:24px}.equivalent-row small{font-size:20px}
- .annual-paid-badge{font-size:22px}.annual-paid-badge strong{font-size:29px}.paid-person-period{font-size:18px}
- .sunday,.saturday,.person-role,.member-note-value,.request-summary-label,.request-summary-empty{color:#000}
- .is-fit .schedule-grid{width:max(100%,3550px);font-size:24px;line-height:1.45}
- .is-fit .schedule-name-col{width:470px}.is-fit .schedule-day-col{width:82px}.is-fit .schedule-meta-col{width:170px}
- .is-fit .schedule-grid thead th,.is-fit .person-name,.is-fit .daily-count-rows td,.is-fit .daily-count-rows .chip,.is-fit .daily-count-rows .counts-heading th,.is-fit .daily-count-rows .counts-heading td,.is-fit .equivalent-row th,.is-fit .equivalent-row td{font-size:24px}
- .is-fit .schedule-grid thead th small,.is-fit .person-role,.is-fit .equivalent-row small{font-size:20px}
- .is-fit .schedule-grid .cell{height:58px;min-height:58px;font-size:27px}
- .is-fit .schedule-grid tbody:not(.daily-count-rows) td:nth-last-child(-n+3){font-size:21px}
-}
-@media screen and (max-width:800px){body{font-size:24px}h1{font-size:40px}h2{font-size:34px}nav button{font-size:24px}.panel{padding:22px}.month-label,.field,.desc,.subtle,.legend,.note,footer{font-size:22px}}
-
-@media screen{
- #schedule-viewport{isolation:isolate;overflow-x:auto;overflow-y:hidden;scrollbar-gutter:stable;scrollbar-color:#184959 #dce4e7;scrollbar-width:auto}
- #schedule-viewport::-webkit-scrollbar{height:24px}#schedule-viewport::-webkit-scrollbar-track{background:#dce4e7;border-radius:12px}#schedule-viewport::-webkit-scrollbar-thumb{background:#184959;border:4px solid #dce4e7;border-radius:12px}
+ #schedule-viewport{isolation:isolate;scrollbar-gutter:stable;scrollbar-color:#184959 #dce4e7;scrollbar-width:auto}
+ #schedule-viewport::-webkit-scrollbar{width:18px;height:18px}#schedule-viewport::-webkit-scrollbar-track{background:#dce4e7;border-radius:10px}#schedule-viewport::-webkit-scrollbar-thumb{background:#184959;border:3px solid #dce4e7;border-radius:10px}
  .schedule-grid th:first-child,.schedule-grid td:first-child{position:sticky!important;left:0!important;z-index:9!important;background:#fff!important;border-right:4px solid #184959!important;box-shadow:12px 0 18px rgba(8,35,44,.24)}
  .schedule-grid thead th:first-child{z-index:12!important;background:#edf2f5!important}
  .schedule-grid .daily-count-rows th:first-child,.schedule-grid .equivalent-row th:first-child{z-index:11!important;background:#edf2f5!important}
- .is-fit .schedule-grid th:first-child,.is-fit .schedule-grid td:first-child{width:470px;min-width:470px;max-width:470px}
- .schedule-view-toolbar:after{content:'左の白い職員列は固定されています。日付部分だけを横に動かせます。';flex-basis:100%;color:#000;font-size:22px;font-weight:800}
+ #schedule-viewport.is-zoom{height:calc(100dvh - 210px);min-height:420px;max-height:820px;overflow:auto;background:#fff}
+ .is-zoom .schedule-grid{table-layout:fixed;width:max(100%,4200px);font-size:24px;line-height:1.45;font-weight:700}
+ .is-zoom .schedule-name-col{width:430px}.is-zoom .schedule-day-col{width:92px}.is-zoom .schedule-meta-col{width:180px}
+ .is-zoom .schedule-grid th,.is-zoom .schedule-grid td{padding:12px 7px}.is-zoom .schedule-grid thead th{position:sticky;top:0;z-index:7;font-size:24px;padding:12px 6px;background:#f4f7f9}.is-zoom .schedule-grid thead th small{font-size:18px;margin-top:4px}
+ .is-zoom .schedule-grid th:first-child,.is-zoom .schedule-grid td:first-child{width:430px;min-width:430px;max-width:430px}.is-zoom .schedule-grid thead th:first-child{z-index:13!important}
+ .is-zoom .person-name{font-size:25px;font-weight:800;white-space:nowrap}.is-zoom .person-role{font-size:18px;color:#173744;white-space:nowrap}
+ .is-zoom .schedule-grid .cell{width:100%;height:58px;min-height:58px;font-size:28px;font-weight:800;padding:8px 4px}
+ .is-zoom .daily-count-rows td,.is-zoom .daily-count-rows .chip,.is-zoom .daily-count-rows .counts-heading th,.is-zoom .daily-count-rows .counts-heading td,.is-zoom .equivalent-row th,.is-zoom .equivalent-row td{font-size:23px;padding:11px 6px}
+ .is-zoom .equivalent-row small{font-size:17px}
+ .schedule-view-toolbar:after{content:'左の白い職員列は固定されています。日付部分だけを縦横に動かせます。';flex-basis:100%;color:#173744;font-size:14px;font-weight:700}
 }
-@media screen and (max-width:800px){.is-fit .schedule-grid th:first-child,.is-fit .schedule-grid td:first-child{width:360px;min-width:360px;max-width:360px}.schedule-view-toolbar:after{font-size:20px}}
+@media screen and (max-width:800px){.is-zoom .schedule-grid th:first-child,.is-zoom .schedule-grid td:first-child{width:300px;min-width:300px;max-width:300px}.is-zoom .schedule-name-col{width:300px}}
