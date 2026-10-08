@@ -11,7 +11,7 @@ function conditionSnapshot(){
  lines.push('','職員専用の個別メモ・勤務条件（対応する定型文のみ自動適用）');
  for(const p of state.members)if(p.memberPrompt){const parsed=E.parseMemberPrompt(p.memberPrompt);lines.push(p.name+'：'+p.memberPrompt);lines.push('自動適用：'+(parsed.nightOnly?'夜勤専門':parsed.gAllowed?'G勤務が可能（残り6〜7時間でG候補）':'追加なし'));if(parsed.notes.length)lines.push('未対応の文章はメモのみ');}
  lines.push('',meetingConditionText(),'','希望休・有給・出勤希望（出勤希望を優先し、他の日も出勤可）');
- for(const p of state.members){const req=range().filter(d=>m.requests[k(p.id,d)]).map(d=>d+'日'+(m.requests[k(p.id,d)]==='W'?'出勤希望':m.requests[k(p.id,d)]==='E'?'希':'有'));if(req.length)lines.push(p.name+'：'+req.join('、'));}
+ for(const p of state.members){const req=range().filter(d=>m.requests[k(p.id,d)]).map(d=>{const request=m.requests[k(p.id,d)],shift=request==='W'?m.workRequests[k(p.id,d)]||'':'';return d+'日'+(request==='W'?'出勤希望'+(shift?'（'+shift+' '+E.shifts[shift].label+'）':''):request==='E'?'希':'有');});if(req.length)lines.push(p.name+'：'+req.join('、'));}
  lines.push('登録合計：'+Object.keys(m.requests).length+'日分','','固定勤務');
  for(const p of state.members){const fixed=range().filter(d=>m.locks[k(p.id,d)]).map(d=>d+'日'+(m.schedule[k(p.id,d)]||'空欄'));if(fixed.length)lines.push(p.name+'：'+fixed.join('、'));}
  lines.push('','保存済みの日別設定（入力欄は非表示。B・C・Dの旧人数は適用しない）');
@@ -29,7 +29,7 @@ function updateConditionPreview(){
 function bindConditionPanel(){
  let recorded=false;const input=$('#condition-prompt');
  input.onfocus=()=>{recorded=false;};
- input.oninput=()=>{if(!recorded){undo.push(E.copy(state));if(undo.length>40)undo.shift();redo=[];recorded=true;}mo().conditionPrompt=input.value;dirty=true;updateConditionPreview();$('#undo').disabled=!undo.length;$('#redo').disabled=!redo.length;};
+ input.oninput=()=>{if(!recorded){undo.push(E.copy(state));if(undo.length>40)undo.shift();redo=[];recorded=true;}mo().conditionPrompt=input.value;dirty=true;persistState();updateConditionPreview();$('#undo').disabled=!undo.length;$('#redo').disabled=!redo.length;};
  $('#apply-condition-prompt').onclick=()=>{const parsed=ShiftConditions.parse(mo().conditionPrompt);if(parsed.errors.length)return;change(()=>{Object.assign(mo().rules,parsed.rules);mo().appliedConditionPrompt=mo().conditionPrompt;});toast('B制限なし・C2人・D1人と、連勤・休日の設定を反映しました。シフトの再作成は別途実行してください。');};
  $('#condition-to-month').onclick=()=>{$('#monthly-conditions').scrollIntoView({block:'start',behavior:'smooth'});$('#generate').focus({preventScroll:true});};
  $('#condition-copy').disabled=typeof state.months[E.prevMonth(current)]?.conditionPrompt!=='string';
@@ -112,7 +112,7 @@ function editPerson(id,isUser){
   if(isUser)p.type=f.get('type');
  else{const selectedRole=String(f.get('role')||''),role=(selectedRole==='__custom__'?String(f.get('customRole')||''):selectedRole).trim();if(!role||role.length>50){$('#form-error').textContent='手書きの職種名を1〜50文字で入力してください。';return;}Object.assign(p,{role,employmentType:f.get('employmentType'),usesI:f.get('usesI')==='yes',night:f.get('night')==='yes',nightMax:+f.get('nightMax'),target:+f.get('target'),targetMode:f.get('targetMode')==='min'?'min':'max',memberPrompt:String(f.get('memberPrompt')||'')});}
   if(!isUser){const errors=E.memberConditionErrors(p);if(errors.length){$('#form-error').textContent=errors.join(' ');return;}}
-  change(()=>{if(!isUser&&!E.roles.includes(p.role)&&!state.customRoles.includes(p.role))state.customRoles.push(p.role);if(id)list[list.findIndex(x=>x.id===id)]=p;else list.push(p);});
+  change(()=>{if(!isUser&&!E.roles.includes(p.role)&&!state.customRoles.includes(p.role))state.customRoles.push(p.role);if(!isUser&&id)for(const record of Object.values(state.months))for(const [cell,code] of Object.entries(record.workRequests||{}))if(cell.startsWith(id+':')&&(p.employmentType!=='part'||!E.memberShiftAllowed(p,code)))delete record.workRequests[cell];if(id)list[list.findIndex(x=>x.id===id)]=p;else list.push(p);});
   close();toast('保存しました');
  };
 }

@@ -2,6 +2,7 @@
  'use strict';
  const roles=['介護職員','看護職員','管理者','計画作成担当者'];
  const shifts={B:{label:'日勤',time:'8:30–17:30',hours:8,cls:'b'},C:{label:'遅番',time:'10:30–19:30',hours:8,cls:'c'},D:{label:'夜勤入り',time:'16:30–翌10:30',hours:8,cls:'night'},d:{label:'夜勤明け',time:'夜勤の翌日',hours:8,cls:'night'},E:{label:'休日',time:'',hours:0,cls:'off'},F:{label:'有休',time:'',hours:8,cls:'paid'},G:{label:'短時間',time:'9:00–15:00',hours:6,cls:'short'},I:{label:'パート日勤',time:'9:00–17:00',hours:7,cls:'short'},'/B':{label:'午後日勤',time:'13:30–17:30',hours:4,cls:'short'},'/C':{label:'午後遅番',time:'15:30–19:30',hours:4,cls:'short'}};
+ const workRequestShifts=['B','C','G','I','/B','/C'];
  const copy=x=>JSON.parse(JSON.stringify(x));
  const days=m=>new Date(+m.slice(0,4),+m.slice(5),0).getDate();
  const iso=(m,d)=>`${m}-${String(d).padStart(2,'0')}`;
@@ -38,7 +39,7 @@
   return !parsed.nightOnly||!works(code)||['D','d'].includes(code);
  }
  function fresh(){return {version:1,customRoles:[],members:Array.from({length:12},(_,i)=>({id:'s'+(i+1),name:['管理者（サンプル）','看護職員（サンプル）',...Array.from({length:10},(_,j)=>`介護職員${String(j+1).padStart(2,'0')}（サンプル）`)][i],role:i===0?'管理者':i===1?'看護職員':'介護職員',employmentType:'full',usesI:false,night:i>=2&&i<=6,nightMax:7,weekdays:[0,1,2,3,4,5,6],start:'',end:'',target:0,targetMode:'max'})),users:[],months:{}};}
- function month(state,m){if(!state.months[m])state.months[m]={requests:{},schedule:{},locks:{},previous:{},targets:{},daily:{},meetings:[],rules:{B:0,C:2,D:1,maxRun:5,off:9},generated:false};return state.months[m];}
+ function month(state,m){if(!state.months[m])state.months[m]={requests:{},workRequests:{},schedule:{},locks:{},previous:{},targets:{},daily:{},meetings:[],rules:{B:0,C:2,D:1,maxRun:5,off:9},generated:false};if(!state.months[m].workRequests)state.months[m].workRequests={};return state.months[m];}
  // B/C/D use the fixed facility policy even when legacy monthly or daily settings are loaded.
  const staffingNeed=(mo,d,code)=>code==='B'?0:code==='C'?2:code==='D'?1:(mo.daily[d]?.[code]??mo.rules[code]);
  function meetingDays(state,m){return [...new Set(month(state,m).meetings||[])].sort((a,b)=>a-b);}
@@ -103,7 +104,7 @@
   for(const r of dailyEquivalent(state,m))if(r.tenths<70)add('equivalent',`${r.day}日：8時間換算 ${r.value}（施設基準7.0未満）`,null,r.day);
   for(const p of state.members){const personal=parseMemberPrompt(p.memberPrompt);if(Array.from({length:n},(_,i)=>i+1).some(d=>active(p,m,d)))for(const error of memberConditionErrors(p,personal))add('personal',p.name+'：'+error,p.id,null);let run=0,hours=0,night=0,off=0; for(let d=1;d<=n;d++){const k=key(p.id,d),c=mo.schedule[k]||'',r=mo.requests[k];const before=d===1?prior(state,m,p):mo.schedule[key(p.id,d-1)];
    if(r==='F'||c==='F'){const eligibility=paidLeaveEligibility(p,iso(m,d));if(!eligibility.allowed)add('paidLeave',`${p.name} ${d}日：${eligibility.reason}`,p.id,d);}
-   if(r==='W'&&!works(c))add('workRequest',`${p.name} ${d}日：出勤希望を満たしていません`,p.id,d);
+   if(r==='W'){const desired=mo.workRequests[k];if(desired?c!==desired:!works(c))add('workRequest',`${p.name} ${d}日：出勤希望${desired?'（'+desired+' '+shifts[desired].label+'）':''}を満たしていません`,p.id,d);}
    if(r&&r!=='W'&&r!==c)add('request',`${p.name} ${d}日：${r==='E'?'希望休':'有休希望'}と不一致`,p.id,d);
    if(!active(p,m,d)){if(works(c)||c==='F')add('inactive',`${p.name} ${d}日：在籍期間外`,p.id,d);continue;}
    if(c==='E')off++;
@@ -142,6 +143,7 @@
    for(const p of state.members)for(let d=1;d<=n;d++){const k=key(p.id,d);sc[k]=active(p,m,d)?'E':'';if(mo.requests[k]&&mo.requests[k]!=='W'){sc[k]=mo.requests[k];protectedKeys.add(k);}if(mo.locks[k]){sc[k]=mo.schedule[k]||'';protectedKeys.add(k);}}
    for(const d of meetingDays(state,m))for(const p of state.members)if(p.role==='管理者'&&active(p,m,d)){const k=key(p.id,d);sc[k]='B';protectedKeys.add(k);}
    const can=(p,d,c)=>{if(!memberShiftAllowed(p,c,personalById.get(p.id)))return false;if(d>n)return !futureShiftConflict(state,m,p,d,c);const k=key(p.id,d);return active(p,m,d)&&(c==='d'||!works(c)||p.weekdays.includes(weekday(m,d)))&&(!protectedKeys.has(k)||sc[k]===c)&&(!reserved.has(k)||sc[k]===c);};
+   const workPreferenceAllows=(p,d,c)=>d>n||mo.requests[key(p.id,d)]!=='W'||!mo.workRequests[key(p.id,d)]||mo.workRequests[key(p.id,d)]===c;
    const count=(p,c)=>Array.from({length:n},(_,i)=>sc[key(p.id,i+1)]).filter(x=>x===c).length;
    const hrs=p=>Array.from({length:n},(_,i)=>shifts[sc[key(p.id,i+1)]]?.hours||0).reduce((a,b)=>a+b,0);
    const assign=(p,d,c)=>{if(d<=n&&can(p,d,c)){sc[key(p.id,d)]=c;reserved.add(key(p.id,d));}};
@@ -149,14 +151,14 @@
    for(const p of state.members)if(targetMode(p)==='max'&&hrs(p)>target(p,mo,n))throw Error(`${p.name}：固定勤務・希望・会議・前月夜勤の合計が、勤務時間目安${target(p,mo,n)}時間以内を超えています。条件を調整してください。`);
    const runOK=(p,d,extra=1)=>{let a=0,b=0;for(let x=d-1;x>=1&&works(sc[key(p.id,x)]);x--)a++;for(let x=d+extra;x<=n&&works(sc[key(p.id,x)]);x++)b++;return a+b+extra<=mo.rules.maxRun;};
    for(let d=1;d<=n;d++){let need=staffingNeed(mo,d,'D')-state.members.filter(p=>sc[key(p.id,d)]==='D').length;
-    const addedNightHours=(d<=n?8:0)+(d+1<=n?8:0);while(need-->0){const pool=state.members.filter(p=>p.night&&count(p,'D')<p.nightMax&&[0,1,2].every((v)=>can(p,d+v,['D','d','E'][v]))&&sc[key(p.id,d)]==='E'&&(targetMode(p)==='min'||hrs(p)+addedNightHours<=target(p,mo,n))&&(d===1?prior(state,m,p):sc[key(p.id,d-1)])!=='D'&&(d===1?prior(state,m,p):sc[key(p.id,d-1)])!=='d'&&runOK(p,d,2)).map(p=>({p,score:count(p,'D')*10+Math.random()*9-(mo.requests[key(p.id,d)]==='W'?100:0)-(mo.requests[key(p.id,d+1)]==='W'?50:0)+(mo.requests[key(p.id,d+2)]==='W'?100:0)})).sort((a,b)=>a.score-b.score);if(!pool.length)break;const p=pool[0].p;assign(p,d,'D');assign(p,d+1,'d');assign(p,d+2,'E');}
+    const addedNightHours=(d<=n?8:0)+(d+1<=n?8:0);while(need-->0){const pool=state.members.filter(p=>p.night&&count(p,'D')<p.nightMax&&[0,1,2].every((v)=>can(p,d+v,['D','d','E'][v])&&workPreferenceAllows(p,d+v,['D','d','E'][v]))&&sc[key(p.id,d)]==='E'&&(targetMode(p)==='min'||hrs(p)+addedNightHours<=target(p,mo,n))&&(d===1?prior(state,m,p):sc[key(p.id,d-1)])!=='D'&&(d===1?prior(state,m,p):sc[key(p.id,d-1)])!=='d'&&runOK(p,d,2)).map(p=>({p,score:count(p,'D')*10+Math.random()*9-(mo.requests[key(p.id,d)]==='W'?100:0)-(mo.requests[key(p.id,d+1)]==='W'?50:0)+(mo.requests[key(p.id,d+2)]==='W'?100:0)})).sort((a,b)=>a.score-b.score);if(!pool.length)break;const p=pool[0].p;assign(p,d,'D');assign(p,d+1,'d');assign(p,d+2,'E');}
    }
    // Scarce days first. Requests, manually fixed shifts, and night/rest blocks stay protected.
    const order=Array.from({length:n},(_,i)=>i+1).sort((a,b)=>state.members.filter(p=>can(p,a,'C')).length-state.members.filter(p=>can(p,b,'C')).length);
    for(const d of order)for(const c of ['C']){let need=staffingNeed(mo,d,c)-state.members.filter(p=>sc[key(p.id,d)]===c).length;
-    while(need-->0){const pool=state.members.filter(p=>!reserved.has(key(p.id,d))&&!protectedKeys.has(key(p.id,d))&&sc[key(p.id,d)]==='E'&&can(p,d,c)&&runOK(p,d)&&(targetMode(p)==='min'||hrs(p)+8<=target(p,mo,n))).map(p=>({p,score:hrs(p)/Math.max(1,target(p,mo,n))+Math.random()*.2-(mo.requests[key(p.id,d)]==='W'?10:0)})).sort((a,b)=>a.score-b.score);if(!pool.length)break;sc[key(pool[0].p.id,d)]=c;}
+    while(need-->0){const pool=state.members.filter(p=>!reserved.has(key(p.id,d))&&!protectedKeys.has(key(p.id,d))&&sc[key(p.id,d)]==='E'&&can(p,d,c)&&workPreferenceAllows(p,d,c)&&runOK(p,d)&&(targetMode(p)==='min'||hrs(p)+8<=target(p,mo,n))).map(p=>({p,score:hrs(p)/Math.max(1,target(p,mo,n))+Math.random()*.2-(mo.requests[key(p.id,d)]==='W'?10:0)})).sort((a,b)=>a.score-b.score);if(!pool.length)break;sc[key(pool[0].p.id,d)]=c;}
    }
-   for(const p of state.members){const personal=personalById.get(p.id);if(personal.nightOnly)continue;const eligible=Array.from({length:n},(_,i)=>i+1).map(d=>({d,score:(mo.requests[key(p.id,d)]==='W'?0:1)+Math.random()})).sort((a,b)=>a.score-b.score).map(x=>x.d);for(const d of eligible){const k=key(p.id,d),remaining=target(p,mo,n)-hrs(p),minimum=targetMode(p)==='min',c=p.usesI?(count(p,'I')>=Math.max(0,n-9)?null:remaining>=7?'I':null):minimum?(remaining<=0?null:remaining>=8?'B':personal.gAllowed&&remaining<=6?'G':'B'):(remaining>=8?'B':personal.gAllowed&&remaining>=6?'G':null);if(!c)break;if(sc[k]==='E'&&!protectedKeys.has(k)&&!reserved.has(k)&&can(p,d,c)&&runOK(p,d))sc[k]=c;}}
+   for(const p of state.members){const personal=personalById.get(p.id);if(personal.nightOnly)continue;const eligible=Array.from({length:n},(_,i)=>i+1).map(d=>({d,score:(mo.requests[key(p.id,d)]==='W'?0:1)+Math.random()})).sort((a,b)=>a.score-b.score).map(x=>x.d);for(const d of eligible){const k=key(p.id,d),remaining=target(p,mo,n)-hrs(p),minimum=targetMode(p)==='min',desired=mo.requests[k]==='W'?mo.workRequests[k]||'':'',desiredHours=shifts[desired]?.hours||0,c=desired?(desired==='C'?null:minimum||desiredHours<=remaining?desired:null):p.usesI?(count(p,'I')>=Math.max(0,n-9)?null:remaining>=7?'I':null):minimum?(remaining<=0?null:remaining>=8?'B':personal.gAllowed&&remaining<=6?'G':'B'):(remaining>=8?'B':personal.gAllowed&&remaining>=6?'G':null);if(!c){if(desired==='C')continue;break;}if(p.usesI&&c==='I'&&count(p,'I')>=Math.max(0,n-9))continue;if(sc[k]==='E'&&!protectedKeys.has(k)&&!reserved.has(k)&&can(p,d,c)&&runOK(p,d))sc[k]=c;}}
    const temp={...state,months:{...state.months,[m]:{...mo,schedule:sc}}};const issues=validate(temp,m);const score=issues.reduce((v,x)=>v+(x.type==='coverage'?100:x.type==='request'?1000:x.type==='workRequest'?80:50),0)+state.members.reduce((v,p)=>v+Math.abs(hrs(p)-target(p,mo,n))*.05,0);if(score<bestScore){bestScore=score;best=sc;}
   }mo.schedule=best;mo.generated=true;return validate(state,m);
  }
@@ -236,7 +238,8 @@
   const userIds=new Set();for(const u of x.users){if(!u||typeof u!=='object'||typeof u.id!=='string'||!/^[\w-]+$/.test(u.id)||userIds.has(u.id)||typeof u.name!=='string'||!['通い','泊まり','訪問'].includes(u.type)||!Array.isArray(u.weekdays)||new Set(u.weekdays).size!==u.weekdays.length||u.weekdays.some(day=>!Number.isInteger(day)||day<0||day>6))throw Error('利用者情報の形式が正しくありません。');checkPeriod(u,'利用者');userIds.add(u.id);}
   for(const [m,v] of Object.entries(x.months)){
    if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(m)||!v.rules||!v.requests||!v.schedule||!v.locks||!v.daily||!v.previous||!v.targets)throw Error('月の情報が正しくありません。');
-   const memberMapFields=['requests','schedule','locks'],memberOnlyFields=['previous','targets'];
+   if(v.workRequests===undefined)v.workRequests={};
+   const memberMapFields=['requests','workRequests','schedule','locks'],memberOnlyFields=['previous','targets'];
    for(const field of [...memberMapFields,...memberOnlyFields])if(!v[field]||typeof v[field]!=='object'||Array.isArray(v[field]))throw Error('月の職員別情報が正しくありません。');
    for(const field of memberMapFields)for(const cell of Object.keys(v[field])){const match=/^([\w-]+):([1-9]|[12]\d|3[01])$/.exec(cell);if(!match)throw Error('希望・勤務データの職員IDまたは日付が正しくありません。');if(!ids.has(match[1]))throw Error('保存データに登録されていない職員の希望・勤務情報があります。');if(Number(match[2])>days(m))throw Error(`${m}に存在しない日付の希望・勤務情報があります。`);}
    for(const field of memberOnlyFields)for(const id of Object.keys(v[field]))if(!ids.has(id))throw Error('保存データに登録されていない職員の個別設定があります。');
@@ -244,6 +247,7 @@
    for(const field of ['conditionPrompt','appliedConditionPrompt'])if(v[field]!==undefined&&(typeof v[field]!=='string'||v[field].length>20000))throw Error('条件の文章は20,000文字以内で保存してください。');
    for(const c of Object.values(v.schedule))if(c&&!shifts[c])throw Error('未対応の勤務記号です。');
    for(const c of Object.values(v.requests))if(!['E','F','W'].includes(c))throw Error('希望の情報が正しくありません。');
+   for(const [cell,c] of Object.entries(v.workRequests)){const person=x.members.find(p=>cell.startsWith(p.id+':'));if(!workRequestShifts.includes(c)||v.requests[cell]!=='W'||!person||person.employmentType!=='part'||!memberShiftAllowed(person,c))throw Error('パート職員の出勤希望勤務が正しくありません。');}
    if(Object.values(v.locks).some(value=>typeof value!=='boolean'))throw Error('固定勤務の情報が正しくありません。');
    if(Object.values(v.previous).some(value=>value&&!shifts[value]))throw Error('前月末勤務の情報が正しくありません。');
    for(const k of ['B','C','D'])if(!Number.isFinite(v.rules[k])||v.rules[k]<0||v.rules[k]>100)throw Error('配置条件の数値が正しくありません。');
@@ -260,6 +264,7 @@
   for(const record of Object.values(state.months)){
    let touched=false;
    for(const field of ['requests','schedule','locks']){const keys=Object.keys(record[field]||{}).filter(k=>k.startsWith(prefix));result[field]+=field==='locks'?keys.filter(k=>record[field][k]).length:keys.length;if(keys.length)touched=true;}
+   if(Object.keys(record.workRequests||{}).some(k=>k.startsWith(prefix)))touched=true;
    for(const field of ['previous','targets'])if(Object.hasOwn(record[field]||{},id)){result.settings++;touched=true;}
    if(touched)result.months++;
   }return result;
@@ -268,9 +273,9 @@
   const index=state.members.findIndex(p=>p.id===id);if(index<0)return false;
   const prefix=id+':';state.members.splice(index,1);
   for(const record of Object.values(state.months)){
-   for(const field of ['requests','schedule','locks'])for(const k of Object.keys(record[field]||{}))if(k.startsWith(prefix))delete record[field][k];
+   for(const field of ['requests','workRequests','schedule','locks'])for(const k of Object.keys(record[field]||{}))if(k.startsWith(prefix))delete record[field][k];
    for(const field of ['previous','targets'])if(record[field])delete record[field][id];
   }return true;
  }
- root.ShiftEngine={validCalendarDate,addCalendarMonths,paidLeavePeriod,paidLeaveEligibility,parseMemberPrompt,memberConditionErrors,memberShiftAllowed,staffingNeed,memberRemovalSummary,removeMember,meetingDays,meetingConflicts,futureShiftConflict,requiredShiftConflict,requiredNightShift,annualPaidLeave,roles,shifts,dailyCounts,equivalentCodes,equivalentTenths,equivalentStatus,dailyEquivalent,copy,days,iso,weekday,prevMonth,nextMonth,key,active,works,fresh,month,prior,target,targetMode,targetModeLabel,projectedHours,targetLimitIssue,validate,generate,checkData};if(typeof module!=='undefined')module.exports=root.ShiftEngine;
+ root.ShiftEngine={validCalendarDate,addCalendarMonths,paidLeavePeriod,paidLeaveEligibility,parseMemberPrompt,memberConditionErrors,memberShiftAllowed,staffingNeed,memberRemovalSummary,removeMember,meetingDays,meetingConflicts,futureShiftConflict,requiredShiftConflict,requiredNightShift,annualPaidLeave,roles,shifts,workRequestShifts,dailyCounts,equivalentCodes,equivalentTenths,equivalentStatus,dailyEquivalent,copy,days,iso,weekday,prevMonth,nextMonth,key,active,works,fresh,month,prior,target,targetMode,targetModeLabel,projectedHours,targetLimitIssue,validate,generate,checkData};if(typeof module!=='undefined')module.exports=root.ShiftEngine;
 })(typeof window!=='undefined'?window:globalThis);

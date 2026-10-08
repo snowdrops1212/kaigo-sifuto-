@@ -30,6 +30,18 @@ r2.rules.D=0;r2.previous[p2.id]='D';r2.requests['s3:2']='W';r2.requests['s3:8']=
 E.generate(s2,m);assert.equal(r2.schedule['s3:1'],'d');assert.equal(r2.schedule['s3:2'],'E');
 assert(!Object.entries(r2.schedule).some(([k,c])=>k.startsWith('s3:')&&['B','C','G'].includes(c)));
 assert(E.validate(s2,m).some(x=>x.type==='workRequest'&&x.d===2));
+
+// Part-time work requests can specify the exact daytime shift and remain soft constraints.
+const typed=E.fresh(),typedMonth=E.month(typed,m),typedPart=typed.members[2];typedPart.employmentType='part';typedPart.night=false;typedPart.target=176;typedPart.targetMode='min';typedMonth.rules.D=0;
+for(const [day,code] of [[6,'B'],[7,'C'],[8,'G'],[9,'/B'],[10,'/C']]){const cell=E.key(typedPart.id,day);typedMonth.requests[cell]='W';typedMonth.workRequests[cell]=code;}
+E.generate(typed,m);
+for(const [day,code] of [[6,'B'],[7,'C'],[8,'G'],[9,'/B'],[10,'/C']])assert.equal(typedMonth.schedule[E.key(typedPart.id,day)],code,day+'日の希望勤務を優先する');
+assert(!E.validate(typed,m).some(x=>x.type==='workRequest'&&x.id===typedPart.id));
+assert.deepEqual(E.checkData(E.copy(typed)),typed,'希望勤務を保存・読込できる');
+const invalidFull=E.copy(typed);invalidFull.members[2].employmentType='full';assert.throws(()=>E.checkData(invalidFull),/パート職員の出勤希望勤務/);
+const invalidLink=E.copy(typed);invalidLink.months[m].requests[E.key(typedPart.id,6)]='E';assert.throws(()=>E.checkData(invalidLink),/パート職員の出勤希望勤務/);
+const legacy=E.copy(typed);delete legacy.months[m].workRequests;E.checkData(legacy);assert.deepEqual(legacy.months[m].workRequests,{},'旧保存データには空の希望勤務を補う');
 assert.equal(E.memberRemovalSummary(s,p.id).requests,5);E.removeMember(s,p.id);
 assert(!Object.keys(r.requests).some(k=>k.startsWith('s3:')));
+assert(E.removeMember(typed,typedPart.id));assert(!Object.keys(typedMonth.workRequests).some(k=>k.startsWith(typedPart.id+':')));
 console.log('PASS: work preference priority, nonrequested days allowed, fixed/rest/availability/night conditions preserved, unmet warnings, meeting compatibility, no W shifts, paid exclusion and JSON/member cleanup');

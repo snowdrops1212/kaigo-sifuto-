@@ -2,7 +2,8 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('nod
 const elements=new Map();const el=key=>{if(!elements.has(key))elements.set(key,{value:'',style:{},innerHTML:'',focus(){this.focused=true;},scrollIntoView(){this.scrolled=true;},closest(){return {scrollLeft:0,scrollTop:0};},insertAdjacentHTML(pos,html){this.innerHTML+=html;},classList:{toggle(){}},setAttribute(){}});return elements.get(key);};
 const document={querySelector(s){return el(s);},querySelectorAll(){return [];},addEventListener(){}};
 let printCalls=0;
-const ctx=vm.createContext({ShiftEngine:E,ShiftConditions:require('./dist/conditions.js'),document,window:{addEventListener(){},print(){printCalls++;}},setTimeout(){return 1;},clearTimeout(){},console});
+const stored=new Map(),localStorage={getItem:key=>stored.get(key)??null,setItem:(key,value)=>stored.set(key,String(value))};
+const ctx=vm.createContext({ShiftEngine:E,ShiftConditions:require('./dist/conditions.js'),document,window:{addEventListener(){},print(){printCalls++;}},localStorage,setTimeout(){return 1;},clearTimeout(){},console});
 for(const file of ['app-core.js','app-requests.js','app-schedule.js','app-members.js','app.js']){
  vm.runInContext(fs.readFileSync('./dist/'+file,'utf8'),ctx,{filename:file});
 }
@@ -280,6 +281,8 @@ assert(el('#member-prompt-preview').innerHTML.includes('G（6時間）'));assert
 const values={name:'個別条件テスト',role:'介護職員',employmentType:'full',usesI:'no',night:'yes',nightMax:'7',target:'14',targetMode:'min',start:'',end:'',weekdays:['0','1','2','3','4','5','6'],memberPrompt:el('#member-prompt').value};
 const submitPerson=()=>el('#person-form').onsubmit({preventDefault(){},target:{values}});
 submitPerson();assert.equal(run("state.members.find(p=>p.id==='s3').memberPrompt"),values.memberPrompt);assert.equal(run("state.members.find(p=>p.id==='s3').targetMode"),'min');assert.equal(run("mo().schedule['s3:1']"),'B');assert.equal(editor.open,false);
+assert.equal(JSON.parse(localStorage.getItem('akari-shift-state-v1')).members.find(p=>p.id==='s3').memberPrompt,values.memberPrompt,'職員編集をブラウザへ自動保存する');
+run("state=E.fresh();state=loadPersistedState();render()");assert.equal(run("state.members.find(p=>p.id==='s3').memberPrompt"),values.memberPrompt,'再読み込み時に職員情報を復元する');
 assert(el('#content').innerHTML.includes('担当者のメモ'));assert(run('conditionSnapshot()').includes('G勤務が可能'));assert(run('conditionSnapshot()').includes('14時間以上'));run('revert(false)');assert.equal(run("state.members.find(p=>p.id==='s3').memberPrompt"),undefined);run('revert(true)');
 run("memberForm('s3')");assert(editor.innerHTML.includes('担当者のメモ'));assert(editor.innerHTML.includes('value="min" checked'));const existing=run('JSON.stringify(state)');
 values.memberPrompt='夜勤専門';values.night='no';submitPerson();assert.equal(run('JSON.stringify(state)'),existing);assert(el('#form-error').textContent.includes('「可能」'));assert.equal(editor.open,true);
@@ -308,19 +311,24 @@ console.log('PASS: D handoff moves the whole D-d-E block to one replacement, blo
 run("state=E.fresh();current='2026-10';tab='schedule';undo=[];redo=[];requestPerson='s3';requestKind='E';render()");
 assert(el('#content').innerHTML.includes('<option value="W"'));
 assert(el('#content').innerHTML.includes('希望日以外にも出勤できます'));
-el('#request-kind').onchange({target:{value:'W'}});el('#request-date').value='2026/11/20';submit();
+assert(el('#content').innerHTML.indexOf('id="request-kind"')<el('#content').innerHTML.indexOf('id="request-shift"'));assert(el('#content').innerHTML.indexOf('id="request-shift"')<el('#content').innerHTML.indexOf('id="request-date"'));
+assert(el('#content').innerHTML.includes('id="request-shift" disabled'));assert(el('#content').innerHTML.includes('<option value="" selected>—</option>'));
+run("state.members[2].employmentType='part';render()");el('#request-kind').onchange({target:{value:'W'}});
+assert(!el('#content').innerHTML.includes('id="request-shift" disabled'));for(const code of ['B','C','G','/B','/C'])assert(el('#content').innerHTML.includes('<option value="'+code+'"'));assert(!el('#content').innerHTML.includes('<option value="I"'));
+el('#request-shift').onchange({target:{value:'G'}});el('#request-date').value='2026/11/20';submit();
 assert.equal(run('current'),'2026-11');assert.equal(run("mo().requests['s3:20']"),'W');
-assert(run('requestSummary()').includes('data-summary-kind="W"'));assert(run('requestSummary()').includes('20日（金）'));
-assert(run('conditionSnapshot()').includes('20日出勤希望'));
+assert.equal(run("mo().workRequests['s3:20']"),'G');
+assert(run('requestSummary()').includes('data-summary-kind="W"'));assert(run('requestSummary()').includes('20日（金）・G 短時間'));
+assert(run('conditionSnapshot()').includes('20日出勤希望（G 短時間）'));
 const workSaved=run('JSON.stringify(state)');run('state=E.checkData(JSON.parse(JSON.stringify(state)));render()');assert.equal(run('JSON.stringify(state)'),workSaved);
 const workUndo=run('undo.length');submit();assert.equal(run('undo.length'),workUndo);
 run("mo().schedule['s3:20']='E';mo().locks['s3:20']=true;mo().generated=true;render()");
 assert.equal(run("paidBadge(state.members[2])"),'');
 el('#request-kind').onchange({target:{value:'F'}});el('#request-date').value='2026-11-20';submit();
-assert.equal(run("mo().requests['s3:20']"),'W');assert(el('#toast').textContent.includes('入職日'));
+assert.equal(run("mo().requests['s3:20']"),'W');assert.equal(run("mo().workRequests['s3:20']"),'G');assert(el('#toast').textContent.includes('入職日'));
 run("state.members[2].start='2026-01-15'");submit();
-assert.equal(run("mo().requests['s3:20']"),'F');assert.equal(run("mo().schedule['s3:20']"),'E');assert.equal(run("mo().locks['s3:20']"),true);
-run('revert(false)');assert.equal(run("mo().requests['s3:20']"),'W');run('revert(true)');assert.equal(run("mo().requests['s3:20']"),'F');
+assert.equal(run("mo().requests['s3:20']"),'F');assert.equal(run("mo().workRequests['s3:20']"),undefined);assert.equal(run("mo().schedule['s3:20']"),'E');assert.equal(run("mo().locks['s3:20']"),true);
+run('revert(false)');assert.equal(run("mo().requests['s3:20']"),'W');assert.equal(run("mo().workRequests['s3:20']"),'G');run('revert(true)');assert.equal(run("mo().requests['s3:20']"),'F');assert.equal(run("mo().workRequests['s3:20']"),undefined);
 assert(run("paidBadge(state.members[2])").includes('2026-07-15〜2027-07-14'));assert(run("paidBadge(state.members[2])").includes('<strong>1</strong>'));
 run("current='2026-06'");assert(run("paidBadge(state.members[2])").includes('集計開始前'));
 assert(run('paidYearNote()').includes('入職日の6か月後'));assert(run('paidYearNote()').includes('表示月の末日'));

@@ -1,14 +1,17 @@
 'use strict';
 // Shared application state, DOM helpers, undo/redo, and top-level rendering.
 const E=ShiftEngine,$=s=>document.querySelector(s),content=$('#content'),dialog=$('#editor');
-let state=E.fresh(),current='2026-10',tab='schedule',undo=[],redo=[],dirty=false;
-let requestPerson='',requestKind='E',requestDate='',meetingDate='';
+const storageKey='akari-shift-state-v1';
+function loadPersistedState(){try{const saved=typeof localStorage!=='undefined'?localStorage.getItem(storageKey):'';return saved?E.checkData(JSON.parse(saved)):E.fresh();}catch(err){console.warn('自動保存データを読み込めませんでした。',err);return E.fresh();}}
+function persistState(){try{if(typeof localStorage!=='undefined')localStorage.setItem(storageKey,JSON.stringify(state));return true;}catch(err){console.warn('自動保存できませんでした。',err);return false;}}
+let state=loadPersistedState(),current='2026-10',tab='schedule',undo=[],redo=[],dirty=false;
+let requestPerson='',requestKind='E',requestShift='B',requestDate='',meetingDate='';
 let scheduleFit=true,scheduleExpanded=false,scheduleResizeObserver;
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const mo=()=>E.month(state,current),n=()=>E.days(current),k=E.key,chip=c=>E.shifts[c]?.cls||'blank';
 function toast(t){$('#toast').textContent=t;$('#toast').style.display='block';clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('#toast').style.display='none',3500);}
-function change(fn){undo.push(E.copy(state));if(undo.length>40)undo.shift();redo=[];fn();dirty=true;render();}
-function revert(forward){const from=forward?redo:undo,to=forward?undo:redo;if(!from.length)return;to.push(E.copy(state));state=from.pop();dirty=true;render();toast('変更を戻しました');}
+function change(fn){undo.push(E.copy(state));if(undo.length>40)undo.shift();redo=[];fn();dirty=true;const saved=persistState();render();if(!saved)toast('ブラウザへの自動保存に失敗しました。「データを保存」でバックアップしてください。');}
+function revert(forward){const from=forward?redo:undo,to=forward?undo:redo;if(!from.length)return;to.push(E.copy(state));state=from.pop();dirty=true;const saved=persistState();render();toast(saved?'変更を戻しました':'変更を戻しましたが、自動保存に失敗しました。');}
 function close(){dialog.close();}
 function ask(title,text,action){const d=$('#confirm');d.innerHTML=`<h2>${esc(title)}</h2><p>${esc(text)}</p><div class="dialog-bottom"><button id="no">戻る</button><button class="primary" id="yes">実行する</button></div>`;d.showModal();$('#no').onclick=()=>d.close();$('#yes').onclick=()=>{d.close();action();};}
 function options(vals,selected){return vals.map(([v,l])=>`<option value="${esc(v)}" ${v===selected?'selected':''}>${esc(l)}</option>`).join('');}

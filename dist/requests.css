@@ -13,6 +13,7 @@
 .request-controls select{min-height:46px;font-size:16px}
 #request-person{width:280px;max-width:100%}
 #request-kind{width:210px;max-width:100%}
+#request-shift{width:170px;max-width:100%}#request-shift:disabled{background:#edf1f3;color:#71818a;cursor:not-allowed}
 .request-controls .desc{flex:1;min-width:220px;margin:0 0 6px}
 .paid-year-note{font-size:14px;color:#756124;background:#fff9e4;border:1px solid #f0df9e;border-radius:8px;padding:10px 14px;margin:12px 0}
 th.paid-person{min-width:310px;max-width:360px}
