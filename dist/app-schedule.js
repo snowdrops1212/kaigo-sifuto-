@@ -1,8 +1,8 @@
 'use strict';
 // Generated schedule table, viewport behavior, validation display, and cell editing.
-function scheduleViewControls(){return '<div class="schedule-view-toolbar"><div class="toolbar"><button type="button" id="schedule-fit" aria-pressed="'+scheduleFit+'">縦を全体表示</button><button type="button" id="schedule-zoom" aria-pressed="'+(!scheduleFit)+'">文字を大きくする</button><button type="button" id="schedule-expand" class="primary" aria-pressed="'+scheduleExpanded+'">'+(scheduleExpanded?'通常画面に戻る':'表を画面いっぱいに表示')+'</button></div><span id="schedule-view-status" class="subtle" role="status">'+(scheduleFit?'全職員と人数集計を縦に表示。日付は横にスクロールできます':'拡大表示：スクロールして編集できます')+'</span></div>';}
+function scheduleViewControls(){return '<div class="schedule-view-toolbar"><div class="toolbar"><button type="button" id="schedule-fit" aria-pressed="'+scheduleFit+'">全体表示</button><button type="button" id="schedule-zoom" aria-pressed="'+(!scheduleFit)+'">文字を大きくする</button><button type="button" id="schedule-expand" class="primary" aria-pressed="'+scheduleExpanded+'">'+(scheduleExpanded?'通常画面に戻る':'表を画面いっぱいに表示')+'</button></div><span id="schedule-view-status" class="subtle" role="status">'+(scheduleFit?'表全体をスクロールなしで表示します':'拡大表示：職員名・職種を固定し、2本指で左右に動かせます')+'</span></div>';}
 function fitHeightScale(height,tableHeight){if([height,tableHeight].some(v=>!Number.isFinite(v)||v<=0))return 1;return Math.min(1,height/tableHeight);}
-function fitWidthForScale(naturalWidth,viewportWidth,scale){if(!Number.isFinite(naturalWidth)||naturalWidth<=0||!Number.isFinite(viewportWidth)||viewportWidth<=2||!Number.isFinite(scale)||scale<=0)return naturalWidth;return Math.ceil(Math.max(naturalWidth,(viewportWidth-2)/scale)+420);}
+function fitWidthScale(width,tableWidth){if([width,tableWidth].some(v=>!Number.isFinite(v)||v<=0))return 1;return Math.min(1,width/tableWidth);}
 function fitScheduleTable(){
  const viewport=$('#schedule-viewport'),canvas=$('#schedule-canvas');
  if(tab!=='schedule'||!mo().generated||!viewport||!canvas)return;
@@ -11,21 +11,19 @@ function fitScheduleTable(){
  const naturalWidth=438+n()*69,viewportWidth=Number.isFinite(viewport.clientWidth)?viewport.clientWidth:0,availableHeight=Math.max(1,viewport.clientHeight-2);
  canvas.style.width=naturalWidth+'px';
  let height=canvas.offsetHeight;if(!height)return;
- let scale=fitHeightScale(availableHeight,height);
- canvas.style.width=fitWidthForScale(naturalWidth,viewportWidth,scale)+'px';
- height=canvas.offsetHeight;if(!canvas.offsetWidth||!height)return;
- scale=fitHeightScale(availableHeight,height);
- canvas.style.width=fitWidthForScale(naturalWidth,viewportWidth,scale)+'px';
+ const scale=Math.min(fitHeightScale(availableHeight,height),fitWidthScale(viewportWidth-2,naturalWidth));
  canvas.style.zoom=String(scale);
- viewport.scrollTop=0;
- $('#schedule-view-status').textContent='縦を全体表示 '+Math.round(scale*100)+'%｜日付は横スクロールできます。セルをクリックして編集'+(scale<0.7?'。文字が小さい場合は画面いっぱいに表示、または文字を大きくするを選んでください。':'');
+ viewport.scrollTop=0;viewport.scrollLeft=0;
+ $('#schedule-view-status').textContent='全体表示 '+Math.round(scale*100)+'%｜表全体をスクロールなしで表示しています。セルをクリックして編集'+(scale<0.7?'。文字が小さい場合は「文字を大きくする」を選んでください。':'');
 }
 function queueScheduleFit(){if(window.requestAnimationFrame){if(queueScheduleFit.frame)window.cancelAnimationFrame(queueScheduleFit.frame);queueScheduleFit.frame=window.requestAnimationFrame(fitScheduleTable);}else setTimeout(fitScheduleTable,0);}
+function panScheduleHorizontally(event){const viewport=$('#schedule-viewport');if(!viewport||scheduleFit||viewport.scrollWidth<=viewport.clientWidth)return;const delta=Math.abs(event.deltaX||0)>=Math.abs(event.deltaY||0)?event.deltaX:(event.shiftKey?event.deltaY:0);if(!delta)return;const before=viewport.scrollLeft,max=Math.max(0,viewport.scrollWidth-viewport.clientWidth);viewport.scrollLeft=Math.max(0,Math.min(max,before+delta));if(viewport.scrollLeft!==before)event.preventDefault?.();}
 function bindScheduleView(){
  $('#schedule-fit').onclick=()=>{scheduleFit=true;render();$('#schedule-fit').focus({preventScroll:true});};
  $('#schedule-zoom').onclick=()=>{scheduleFit=false;render();$('#schedule-zoom').focus({preventScroll:true});};
  $('#schedule-expand').onclick=()=>{const returning=scheduleExpanded;scheduleExpanded=!scheduleExpanded;render();if(returning)$('#schedule-viewport').scrollIntoView({block:'start',behavior:'smooth'});$('#schedule-expand').focus({preventScroll:true});};
  if(typeof ResizeObserver!=='undefined'){scheduleResizeObserver=new ResizeObserver(queueScheduleFit);scheduleResizeObserver.observe($('#schedule-viewport'));}
+ $('#schedule-viewport').onwheel=panScheduleHorizontally;
  queueScheduleFit();
 }
 window.addEventListener('resize',queueScheduleFit);
