@@ -13,6 +13,14 @@
  const active=(p,m,d)=>(!p.start||p.start<=iso(m,d))&&(!p.end||p.end>=iso(m,d));
  const works=c=>!!c&&c!=='E'&&c!=='F';
  function onlyShiftCodes(line){const symbols="BCDdEFGIJLM'/・、,";const direct=new RegExp('^(['+symbols+']+)(?:のみ|だけ)(?:勤務(?:可能|可)?)?(?:です)?$'),prefixed=new RegExp('^勤務(?:可能|区分)?:(['+symbols+']+)(?:のみ|だけ)(?:です)?$'),sentence=new RegExp('^勤務は(['+symbols+']+)(?:のみ|だけ)(?:です)?$'),match=line.match(direct)||line.match(prefixed)||line.match(sentence);if(!match)return null;const tokens=match[1].split(/[・、,]/).filter(Boolean),invalid=tokens.filter(code=>!Object.hasOwn(shifts,code)||!works(code));if(!tokens.length||invalid.length)return {codes:[],error:'「'+(invalid.join('・')||match[1])+'」は登録されている勤務記号ではありません。'};let codes=[...new Set(tokens)];if(codes.some(code=>code==='D'||code==='d'))codes=[...codes.filter(code=>code!=='D'&&code!=='d'),'D','d'];return {codes};}
+ function parseAllowedShift(value=''){
+  if(typeof value!=='string'||value.length>100)return {value:'',codes:[],error:'勤務限定は100文字以内で入力してください。'};
+  const raw=value.trim().normalize('NFKC').replace(/\s+/g,'');if(!raw)return {value:'',codes:[],error:''};
+  const parsed=onlyShiftCodes(/(?:のみ|だけ)/.test(raw)?raw:raw+'のみ');
+  if(!parsed)return {value:'',codes:[],error:'勤務限定は「Gのみ」「B・Cのみ」のように登録済みの勤務記号で入力してください。'};
+  if(parsed.error)return {value:'',codes:[],error:parsed.error};
+  return {value:parsed.codes.join('・'),codes:parsed.codes,error:''};
+ }
  function parseMemberPrompt(text=''){
   const result={gAllowed:false,nightOnly:false,onlyShifts:[],applied:[],notes:[],errors:[]},seen=new Set();
   if(typeof text!=='string'||text.length>2000){result.errors.push('個別メモ・勤務条件は2,000文字以内で入力してください。');return result;}
@@ -35,11 +43,11 @@
  function memberConditions(p){
   const parsed=parseMemberPrompt(p.memberPrompt),name=String(p.name||'').normalize('NFKC').trim();
   const named=name.match(/(?:^|[\s(（・／])([BG])のみ(?:勤務(?:可能)?)?[)）]?$/);
-  const limits=[...(p.allowedShift?[p.allowedShift]:[]),...(named?[named[1]]:[])];
-  for(const limit of limits){
-   if(!['B','G'].includes(limit)){parsed.errors.push('勤務限定は「指定なし」「Bのみ」「Gのみ」から選んでください。');continue;}
-   if(parsed.onlyShifts.length&&!parsed.onlyShifts.includes(limit))parsed.errors.push('氏名・勤務限定・個別メモの指定が矛盾しています。');
-   parsed.onlyShifts=[limit];
+  const explicit=parseAllowedShift(p.allowedShift||'');if(explicit.error)parsed.errors.push(explicit.error);
+  for(const limit of [explicit.codes,...(named?[[named[1]]]:[])]){
+   if(!limit.length)continue;
+   if(parsed.onlyShifts.length){const common=parsed.onlyShifts.filter(code=>limit.includes(code));if(!common.length)parsed.errors.push('氏名・勤務限定・個別メモの指定が矛盾しています。');parsed.onlyShifts=common;}
+   else parsed.onlyShifts=[...limit];
   }
   return parsed;
  }
@@ -58,7 +66,7 @@
  }
  function workRequestShiftAllowed(p,code){return !!p&&workRequestShifts.includes(code)&&memberShiftAllowed(p,code)&&(code!=='D'||p.night);}
  function clearMemberConditionConflicts(state,p){let cleared=0;for(const record of Object.values(state.months||{})){for(const [cell,code] of Object.entries(record.schedule||{}))if(cell.startsWith(p.id+':')&&code&&!memberShiftAllowed(p,code)){record.schedule[cell]='';if(record.locks)delete record.locks[cell];cleared++;}for(const [cell,code] of Object.entries(record.workRequests||{}))if(cell.startsWith(p.id+':')&&!workRequestShiftAllowed(p,code))delete record.workRequests[cell];}return cleared;}
- function fresh(){return {version:1,customRoles:[],members:Array.from({length:12},(_,i)=>({id:'s'+(i+1),name:['管理者（サンプル）','看護職員（サンプル）',...Array.from({length:10},(_,j)=>`介護職員${String(j+1).padStart(2,'0')}（サンプル）`)][i],role:i===0?'管理者':i===1?'看護職員':'介護職員',employmentType:'full',usesI:false,night:i>=2&&i<=6,nightMax:7,weekdays:[0,1,2,3,4,5,6],start:'',end:'',target:0,targetMode:'max'})),users:[],months:{}};}
+ function fresh(){return {version:1,customRoles:[],customShiftLimits:[],members:Array.from({length:12},(_,i)=>({id:'s'+(i+1),name:['管理者（サンプル）','看護職員（サンプル）',...Array.from({length:10},(_,j)=>`介護職員${String(j+1).padStart(2,'0')}（サンプル）`)][i],role:i===0?'管理者':i===1?'看護職員':'介護職員',employmentType:'full',usesI:false,night:i>=2&&i<=6,nightMax:7,weekdays:[0,1,2,3,4,5,6],start:'',end:'',target:0,targetMode:'max'})),users:[],months:{}};}
  function month(state,m){if(!state.months[m])state.months[m]={requests:{},workRequests:{},schedule:{},locks:{},previous:{},targets:{},daily:{},meetings:[],rules:{B:0,C:2,D:1,maxRun:5,off:9},generated:false};if(!state.months[m].workRequests)state.months[m].workRequests={};return state.months[m];}
  // B/C/D use the fixed facility policy even when legacy monthly or daily settings are loaded.
  const staffingNeed=(mo,d,code)=>code==='B'?0:code==='C'?2:code==='D'?1:(mo.daily[d]?.[code]??mo.rules[code]);
@@ -234,6 +242,8 @@
   if(!x||x.version!==1||!Array.isArray(x.members)||x.members.length>100||!Array.isArray(x.users)||x.users.length>500||!x.months||typeof x.months!=='object')throw Error('このアプリで保存したデータを選んでください。');
   if(x.customRoles===undefined)x.customRoles=[];
   if(!Array.isArray(x.customRoles)||x.customRoles.length>100||new Set(x.customRoles).size!==x.customRoles.length||x.customRoles.some(role=>typeof role!=='string'||!role.trim()||role!==role.trim()||role.length>50||role==='__custom__'))throw Error('手書き職種の情報が正しくありません。');
+  if(x.customShiftLimits===undefined)x.customShiftLimits=[];
+  if(!Array.isArray(x.customShiftLimits)||x.customShiftLimits.length>100||new Set(x.customShiftLimits).size!==x.customShiftLimits.length||x.customShiftLimits.some(value=>{const parsed=parseAllowedShift(value);return parsed.error||!parsed.value||parsed.value!==value;}))throw Error('保存された手入力の勤務限定が正しくありません。');
   const checkPeriod=(person,label)=>{
    if(person.start===undefined)person.start='';if(person.end===undefined)person.end='';
    if(typeof person.start!=='string'||person.start&&!validCalendarDate(person.start))throw Error(`${label}の開始日が正しくありません。`);
@@ -253,7 +263,7 @@
    if(!['full','part'].includes(p.employmentType)||typeof p.usesI!=='boolean'||p.usesI&&p.employmentType!=='part'||p.usesI&&p.night)throw Error('職員の雇用区分・I勤務の設定が正しくありません。');
    if(p.role==='管理者'&&(p.employmentType!=='full'||p.usesI))throw Error('管理者は正社員・I勤務なしで登録してください。');
    if(p.memberPrompt!==undefined&&(typeof p.memberPrompt!=='string'||p.memberPrompt.length>2000))throw Error('職員の個別メモ・勤務条件は2,000文字以内の文章にしてください。');
-   if(p.allowedShift!==undefined&&!['','B','G'].includes(p.allowedShift))throw Error('職員の勤務限定は「指定なし」「Bのみ」「Gのみ」から選んでください。');
+   if(p.allowedShift!==undefined&&parseAllowedShift(p.allowedShift).error)throw Error('職員の勤務限定が正しくありません。');
    checkPeriod(p,'職員');
    if(!roles.includes(p.role)&&!x.customRoles.includes(p.role))x.customRoles.push(p.role);
    ids.add(p.id);
@@ -300,5 +310,5 @@
    for(const field of ['previous','targets'])if(record[field])delete record[field][id];
   }return true;
  }
- root.ShiftEngine={validCalendarDate,addCalendarMonths,paidLeavePeriod,paidLeaveEligibility,parseMemberPrompt,memberConditions,memberConditionErrors,memberShiftAllowed,workRequestShiftAllowed,clearMemberConditionConflicts,staffingNeed,memberRemovalSummary,removeMember,meetingDays,meetingConflicts,futureShiftConflict,requiredShiftConflict,requiredNightShift,annualPaidLeave,roles,shifts,workRequestShifts,dailyCounts,equivalentCodes,equivalentTenths,equivalentStatus,dailyEquivalent,copy,days,iso,weekday,prevMonth,nextMonth,key,active,works,fresh,month,prior,target,targetMode,targetModeLabel,projectedHours,targetLimitIssue,validate,generate,checkData};if(typeof module!=='undefined')module.exports=root.ShiftEngine;
+ root.ShiftEngine={validCalendarDate,addCalendarMonths,paidLeavePeriod,paidLeaveEligibility,parseMemberPrompt,parseAllowedShift,memberConditions,memberConditionErrors,memberShiftAllowed,workRequestShiftAllowed,clearMemberConditionConflicts,staffingNeed,memberRemovalSummary,removeMember,meetingDays,meetingConflicts,futureShiftConflict,requiredShiftConflict,requiredNightShift,annualPaidLeave,roles,shifts,workRequestShifts,dailyCounts,equivalentCodes,equivalentTenths,equivalentStatus,dailyEquivalent,copy,days,iso,weekday,prevMonth,nextMonth,key,active,works,fresh,month,prior,target,targetMode,targetModeLabel,projectedHours,targetLimitIssue,validate,generate,checkData};if(typeof module!=='undefined')module.exports=root.ShiftEngine;
 })(typeof window!=='undefined'?window:globalThis);

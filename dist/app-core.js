@@ -9,14 +9,15 @@ function recoverStaffState(text){
  try{
   const raw=JSON.parse(text);if(!raw||raw.version!==1||!Array.isArray(raw.members))return null;
   const customRoles=Array.isArray(raw.customRoles)?[...new Set(raw.customRoles.filter(role=>typeof role==='string'&&role.trim()===role&&role&&role.length<=50&&role!=='__custom__'))]:[];
+  const customShiftLimits=Array.isArray(raw.customShiftLimits)?[...new Set(raw.customShiftLimits.filter(value=>typeof value==='string'&&value===E.parseAllowedShift(value).value&&value))]:[];
   let recovered;
-  for(const users of [Array.isArray(raw.users)?raw.users:[],[]]){try{recovered=E.checkData({version:1,customRoles:E.copy(customRoles),members:E.copy(raw.members),users:E.copy(users),months:{}});break;}catch{}}
+  for(const users of [Array.isArray(raw.users)?raw.users:[],[]]){try{recovered=E.checkData({version:1,customRoles:E.copy(customRoles),customShiftLimits:E.copy(customShiftLimits),members:E.copy(raw.members),users:E.copy(users),months:{}});break;}catch{}}
   if(!recovered)return null;
   for(const [month,record]of Object.entries(raw.months&&typeof raw.months==='object'&&!Array.isArray(raw.months)?raw.months:{})){const probe=E.copy(recovered);probe.months[month]=E.copy(record);try{for(const person of probe.members)E.clearMemberConditionConflicts(probe,person);E.checkData(probe);recovered.months[month]=probe.months[month];}catch{}}
   return E.checkData(recovered);
  }catch{return null;}
 }
-function checkedStaffSnapshot(text){const raw=JSON.parse(text);return E.checkData({version:1,customRoles:E.copy(raw.customRoles||[]),members:E.copy(raw.members),users:[],months:{}});}
+function checkedStaffSnapshot(text){const raw=JSON.parse(text);return E.checkData({version:1,customRoles:E.copy(raw.customRoles||[]),customShiftLimits:E.copy(raw.customShiftLimits||[]),members:E.copy(raw.members),users:[],months:{}});}
 function storedStaffSnapshot(){
  if(typeof localStorage==='undefined')return null;
  const protectedRecord=protectedStaff.read();
@@ -24,11 +25,11 @@ function storedStaffSnapshot(){
  const candidates=[];
  for(const key of [staffStorageKey,staffBackupKey,storageKey,storageBackupKey,storageBackup2Key]){const text=localStorage.getItem(key);if(!text)continue;try{candidates.push(checkedStaffSnapshot(text));}catch{}}
  if(!candidates.length)return null;
- const isSample=data=>JSON.stringify(data.members)===JSON.stringify(E.checkData(E.fresh()).members);
+ const isSample=data=>JSON.stringify(data.members)===JSON.stringify(E.checkData(E.fresh()).members)&&!(data.customShiftLimits||[]).length;
  // A default sample written by an old tab must not outrank edited staff in a backup.
  return candidates.find(data=>!isSample(data))||candidates[0];
 }
-function mergeStoredStaff(base,staff){if(!staff||JSON.stringify(base.members)===JSON.stringify(staff.members)&&JSON.stringify(base.customRoles||[])===JSON.stringify(staff.customRoles||[]))return base;const merged=recoverStaffState(JSON.stringify({...base,customRoles:E.copy(staff.customRoles||[]),members:E.copy(staff.members)}));if(!merged)throw Error('職員情報と月データを統合できません。');return merged;}
+function mergeStoredStaff(base,staff){if(!staff||JSON.stringify(base.members)===JSON.stringify(staff.members)&&JSON.stringify(base.customRoles||[])===JSON.stringify(staff.customRoles||[])&&JSON.stringify(base.customShiftLimits||[])===JSON.stringify(staff.customShiftLimits||[]))return base;const merged=recoverStaffState(JSON.stringify({...base,customRoles:E.copy(staff.customRoles||[]),customShiftLimits:E.copy(staff.customShiftLimits||[]),members:E.copy(staff.members)}));if(!merged)throw Error('職員情報と月データを統合できません。');return merged;}
 function loadPersistedState(){
  if(typeof localStorage==='undefined')return E.fresh();
  let staff;try{staff=storedStaffSnapshot();}catch(err){storageBlocked=true;storageNotice=err.message;return {...E.fresh(),members:[]};}

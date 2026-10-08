@@ -2,7 +2,7 @@
  'use strict';
  const primary='akari-shift-staff-v2',backup=primary+'-backup',history=primary+'-history-';
  function create(storage,E){
-  const snapshot=data=>({version:1,customRoles:E.copy(data.customRoles||[]),members:E.copy(data.members)});
+  const snapshot=data=>({version:1,customRoles:E.copy(data.customRoles||[]),customShiftLimits:E.copy(data.customShiftLimits||[]),members:E.copy(data.members)});
   const validate=value=>{if(!value||typeof value.revision!=='string'||!Number.isFinite(value.savedAt))throw Error('職員保存データが読めません。');E.checkData({...E.copy(value.staff),users:[],months:{}});return value;};
   function read(){
    const raw=storage.getItem(primary);if(raw)try{return validate(JSON.parse(raw));}catch{}
