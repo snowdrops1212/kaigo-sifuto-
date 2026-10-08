@@ -182,7 +182,15 @@ assert(summary.includes('2026年10月の希望一覧'));assert(summary.includes(
 assert(summary.includes('data-summary-person="s3"'));assert(!summary.includes('data-summary-person="s1"'));
 assert(summary.indexOf('3日（土）')<summary.indexOf('20日（火）'));
 assert(summary.includes('class="request-summary-date paid">7日（水）'));
+assert(summary.includes('data-remove-request="s3" data-remove-day="7"'));
+assert(summary.includes('7日の有給を削除'));
 assert(el('#content').innerHTML.indexOf('id="request-form"')<el('#content').innerHTML.indexOf('id="request-summary"'));
+run("removeRequest('s3',20)");
+assert.equal(run("mo().requests['s3:20']"),undefined);
+assert(run('requestSummary()').includes('1人・2日分（延べ）'));
+assert.equal(JSON.parse(localStorage.getItem('akari-shift-state-v1')).months['2026-10'].requests['s3:20'],undefined);
+run('revert(false)');
+assert.equal(run("mo().requests['s3:20']"),'E');
 run("mo().schedule['s4:5']='F';mo().generated=true;state.members[2].name='<img src=x onerror=alert(1)>';render()");
 summary=run('requestSummary()');assert(!summary.includes('data-summary-person="s4"'));
 assert(summary.includes('&lt;img src=x onerror=alert(1)&gt;'));assert(!summary.includes('<img'));
