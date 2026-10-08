@@ -7,7 +7,8 @@ function fitScheduleTable(){
  if(tab!=='schedule'||!mo().generated||!viewport||!canvas)return;
  canvas.style.zoom='';canvas.style.width='';
  if(!scheduleFit)return;
- canvas.style.width='max-content';
+ const naturalWidth=606+n()*48,viewportWidth=Number.isFinite(viewport.clientWidth)?viewport.clientWidth:0;
+ canvas.style.width=Math.max(naturalWidth,viewportWidth-2)+'px';
  const width=canvas.offsetWidth,height=canvas.offsetHeight;
  if(!width||!height)return;
  const scale=fitHeightScale(Math.max(1,viewport.clientHeight-2),height);

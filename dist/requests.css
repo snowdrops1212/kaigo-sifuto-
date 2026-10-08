@@ -34,7 +34,7 @@ th.paid-person{min-width:310px;max-width:360px}
 .schedule-view-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:12px 0}.schedule-view-toolbar button{min-height:44px;font-size:14px}.schedule-view-toolbar button[aria-pressed=true]:not(.primary){background:#e3eef2;border-color:#184959}
 #schedule-viewport{position:relative;max-height:none}#schedule-canvas{transform-origin:top left}
 #schedule-viewport.is-fit{height:calc(100dvh - 210px);min-height:300px;max-height:820px;overflow-x:auto;overflow-y:hidden;background:#fff}
-.is-fit .schedule-grid{table-layout:fixed;width:max(100%,calc(606px + var(--schedule-days)*48px));font-size:14px;line-height:1.3}
+.is-fit .schedule-grid{table-layout:fixed;width:100%;font-size:14px;line-height:1.3}
 .is-fit .schedule-name-col{width:300px}.is-fit .schedule-day-col{width:48px}.is-fit .schedule-meta-col{width:102px}
 .is-fit .schedule-grid th:first-child,.is-fit .schedule-grid td:first-child{min-width:0;max-width:none;position:sticky;left:0}
 .is-fit .schedule-grid th,.is-fit .schedule-grid td{padding:5px 3px}.is-fit .schedule-grid thead th{position:static;font-size:14px;padding:8px 3px}.is-fit .schedule-grid thead th small{font-size:12px;margin-top:4px}
