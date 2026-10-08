@@ -12,7 +12,7 @@ function recoverStaffState(text){
   let recovered;
   for(const users of [Array.isArray(raw.users)?raw.users:[],[]]){try{recovered=E.checkData({version:1,customRoles:E.copy(customRoles),members:E.copy(raw.members),users:E.copy(users),months:{}});break;}catch{}}
   if(!recovered)return null;
-  for(const [month,record]of Object.entries(raw.months&&typeof raw.months==='object'&&!Array.isArray(raw.months)?raw.months:{})){const probe=E.copy(recovered);probe.months[month]=E.copy(record);try{E.checkData(probe);recovered.months[month]=probe.months[month];}catch{}}
+  for(const [month,record]of Object.entries(raw.months&&typeof raw.months==='object'&&!Array.isArray(raw.months)?raw.months:{})){const probe=E.copy(recovered);probe.months[month]=E.copy(record);try{for(const person of probe.members)E.clearMemberConditionConflicts(probe,person);E.checkData(probe);recovered.months[month]=probe.months[month];}catch{}}
   return E.checkData(recovered);
  }catch{return null;}
 }
@@ -28,12 +28,12 @@ function storedStaffSnapshot(){
  // A default sample written by an old tab must not outrank edited staff in a backup.
  return candidates.find(data=>!isSample(data))||candidates[0];
 }
-function mergeStoredStaff(base,staff){if(!staff||JSON.stringify(base.members)===JSON.stringify(staff.members)&&JSON.stringify(base.customRoles||[])===JSON.stringify(staff.customRoles||[]))return base;return recoverStaffState(JSON.stringify({...base,customRoles:E.copy(staff.customRoles||[]),members:E.copy(staff.members)}))||base;}
+function mergeStoredStaff(base,staff){if(!staff||JSON.stringify(base.members)===JSON.stringify(staff.members)&&JSON.stringify(base.customRoles||[])===JSON.stringify(staff.customRoles||[]))return base;const merged=recoverStaffState(JSON.stringify({...base,customRoles:E.copy(staff.customRoles||[]),members:E.copy(staff.members)}));if(!merged)throw Error('職員情報と月データを統合できません。');return merged;}
 function loadPersistedState(){
  if(typeof localStorage==='undefined')return E.fresh();
  let staff;try{staff=storedStaffSnapshot();}catch(err){storageBlocked=true;storageNotice=err.message;return {...E.fresh(),members:[]};}
  const saved=[localStorage.getItem(storageKey),localStorage.getItem(storageBackupKey),localStorage.getItem(storageBackup2Key)].filter(Boolean);
- for(const text of saved){try{return mergeStoredStaff(checkedStoredState(text),staff);}catch(err){console.warn('保存データ全体を読み込めませんでした。職員情報の復元を試します。',err);}const recovered=recoverStaffState(text);if(recovered){console.warn('古い月データを除外し、職員情報を復元しました。');const restored=mergeStoredStaff(recovered,staff);try{localStorage.setItem(storageBackup2Key,text);localStorage.setItem(storageKey,JSON.stringify(restored));}catch{}return restored;}}
+ for(const text of saved){try{return mergeStoredStaff(checkedStoredState(text),staff);}catch(err){console.warn('保存データ全体を読み込めませんでした。職員情報の復元を試します。',err);}const recovered=recoverStaffState(text);if(recovered){try{const restored=mergeStoredStaff(recovered,staff);console.warn('古い月データを除外し、職員情報を復元しました。');try{localStorage.setItem(storageBackup2Key,text);localStorage.setItem(storageKey,JSON.stringify(restored));}catch{}return restored;}catch(err){console.warn('月データの復元に失敗しました。職員専用バックアップを優先します。',err);}}}
  if(saved.length&&!staff){storageBlocked=true;storageNotice='保存済みデータを読み込めません。初期化せずに保存を停止しました。「データを開く」でバックアップを復元できます。';return {...E.fresh(),members:[]};}
  return staff||E.fresh();
 }
@@ -90,7 +90,7 @@ function options(vals,selected){return vals.map(([v,l])=>`<option value="${esc(v
 function range(){return Array.from({length:n()},(_,i)=>i+1);}
 function weekHeaders(days=n()){return Array.from({length:Math.ceil(days/7)},(_,i)=>{const start=i*7+1,end=Math.min(days,start+6);return `<th class="week-group" colspan="${end-start+1}" scope="colgroup">${i+1}週目</th>`;}).join('');}
 function headerDays(){return range().map(d=>{const w=E.weekday(current,d);return `<th class="${w===0?'sunday':w===6?'saturday':''}">${d}<small>${'日月火水木金土'[w]}</small></th>`;}).join('');}
-function staffRow(p,paid=false){return `<th${paid?' class="paid-person"':''}><span class="person-heading"><span class="person-identity"><span class="person-name" title="${esc(p.name+'／'+p.role)}">${esc(p.name)}</span><span class="person-role">${esc(p.role)}</span></span>${paid?paidBadge(p):''}</span></th>`;}
+function staffRow(p,paid=false){const limit=E.memberConditions(p).onlyShifts;return `<th${paid?' class="paid-person"':''}><span class="person-heading"><span class="person-identity"><span class="person-name" title="${esc(p.name+'／'+p.role)}">${esc(p.name)}</span><span class="person-role">${esc(p.role)}</span>${limit.length?'<small class="member-work-limit">勤務：'+esc(limit.join('・'))+'のみ</small>':''}</span>${paid?paidBadge(p):''}</span></th>`;}
 function undoBar(){return `<button id="undo" ${undo.length?'':'disabled'}>↶ 元に戻す</button><button id="redo" ${redo.length?'':'disabled'}>↷ やり直す</button>`;}
 function render(){mo();scheduleResizeObserver?.disconnect();if(tab!=='schedule'||!mo().generated)scheduleExpanded=false;document.body?.classList.toggle('schedule-expanded',scheduleExpanded);document.querySelectorAll('nav button').forEach(b=>{const active=b.dataset.tab===tab;b.classList.toggle('active',active);b.setAttribute('aria-current',active?'page':'false');b.setAttribute('aria-selected',String(active));b.tabIndex=active?0:-1;});if(tab==='members')renderMembers();else renderSchedule();if($('#undo'))$('#undo').onclick=()=>revert(false);if($('#redo'))$('#redo').onclick=()=>revert(true);if(storageNotice)content.insertAdjacentHTML('afterbegin','<div class="note" role="alert">'+esc(storageNotice)+'</div>');}
 function syncPersistedState(event){

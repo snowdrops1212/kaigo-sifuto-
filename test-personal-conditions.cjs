@@ -5,6 +5,12 @@ for(const [text,codes] of [['Gのみ勤務可能',['G']],['Ｂ・Ｃのみ勤務
 for(const text of ['Bのみ','Bのみ勤務','Bのみ勤務可能','勤務はBのみ','勤務：Bのみ','勤務可能：Bのみ','勤務区分：Bのみ']){const parsed=E.parseMemberPrompt(text);assert.deepEqual(parsed.onlyShifts,['B'],text);assert.equal(parsed.errors.length,0,text);}
 const onlyGPerson={memberPrompt:'Gのみ',night:false,usesI:false,role:'介護職員',employmentType:'full'};
 assert(E.memberShiftAllowed(onlyGPerson,'G'));assert(E.memberShiftAllowed(onlyGPerson,'E'));assert(E.memberShiftAllowed(onlyGPerson,'F'));assert(!E.memberShiftAllowed(onlyGPerson,'B'));assert(!E.memberShiftAllowed(onlyGPerson,'C'));assert(!E.workRequestShiftAllowed(onlyGPerson,'B'));assert(E.workRequestShiftAllowed(onlyGPerson,'G'));
+for(const [name,allowed,forbidden] of [['パート Gのみ','G',['B','C','D']],['パート Bのみ','B',['G','C','D']]]){
+ const named={...onlyGPerson,name,memberPrompt:''};assert(E.memberShiftAllowed(named,allowed),name);for(const code of forbidden)assert(!E.memberShiftAllowed(named,code),name+' '+code);
+ const explicit={...onlyGPerson,name:'任意の氏名',memberPrompt:'',allowedShift:allowed};assert(E.memberShiftAllowed(explicit,allowed));for(const code of forbidden)assert(!E.memberShiftAllowed(explicit,code));
+}
+assert(!E.memberShiftAllowed({...onlyGPerson,memberPrompt:'腰痛に注意'},'B'),'未対応メモを無視して勤務を割り当てない');
+assert(E.memberConditionErrors({...onlyGPerson,name:'パート Bのみ',allowedShift:'G',memberPrompt:''}).length,'矛盾した勤務限定を拒否する');
 for(const text of ['夜勤専門ではない','この人はGを使えません','夜勤専門かどうかは未確認','会議日はBにして']){
  const p=E.parseMemberPrompt(text);assert.equal(p.nightOnly,false);assert.equal(p.gAllowed,false);assert.deepEqual(p.notes,[text]);
 }
@@ -34,6 +40,7 @@ const onlyGCodes=Object.entries(onlyGMonth.schedule).filter(([key])=>key.startsW
 onlyGMonth.schedule[E.key(onlyGStaff.id,1)]='B';assert(E.validate(onlyG,month).some(issue=>issue.type==='personal'&&issue.id===onlyGStaff.id&&issue.d===1));
 const onlyB=E.fresh(),onlyBMonth=E.month(onlyB,month),onlyBStaff=onlyB.members[2];onlyBStaff.memberPrompt='Bのみ';onlyBStaff.target=24;onlyBStaff.targetMode='max';E.generate(onlyB,month);const onlyBCodes=Object.entries(onlyBMonth.schedule).filter(([key])=>key.startsWith(onlyBStaff.id+':')).map(([,code])=>code);assert(onlyBCodes.every(code=>['B','E','F',''].includes(code)));assert(!onlyBCodes.includes('C'));
 onlyBMonth.schedule[E.key(onlyBStaff.id,1)]='C';onlyBMonth.locks[E.key(onlyBStaff.id,1)]=true;onlyBMonth.requests[E.key(onlyBStaff.id,2)]='W';onlyBMonth.workRequests[E.key(onlyBStaff.id,2)]='C';assert.equal(E.clearMemberConditionConflicts(onlyB,onlyBStaff),1);assert.equal(onlyBMonth.schedule[E.key(onlyBStaff.id,1)],'');assert.equal(onlyBMonth.locks[E.key(onlyBStaff.id,1)],undefined);assert.equal(onlyBMonth.workRequests[E.key(onlyBStaff.id,2)],undefined);
+for(const [name,allowed] of [['パート Gのみ','G'],['パート Bのみ','B']]){const named=E.fresh(),person=named.members[2],record=E.month(named,month);person.name=name;person.memberPrompt='';person.target=16;person.targetMode='max';E.generate(named,month);assert(Object.entries(record.schedule).filter(([cell])=>cell.startsWith(person.id+':')).every(([,code])=>!E.works(code)||code===allowed),name+' の自動作成');}
 const unknown=E.fresh();E.month(unknown,month);unknown.members[2].memberPrompt='腰痛のため重要事項を確認';const unknownBefore=JSON.stringify(unknown);assert.throws(()=>E.generate(unknown,month),/自動判定できない重要事項/);assert.equal(JSON.stringify(unknown),unknownBefore);assert(E.validate(unknown,month).some(issue=>issue.type==='personalNote'&&issue.id==='s3'));
 const legacy=E.fresh(),lm=E.month(legacy,month);legacy.members[0].target=6;E.generate(legacy,month);
 assert(!Object.entries(lm.schedule).some(([k,c])=>k.startsWith('s1:')&&c==='G'));

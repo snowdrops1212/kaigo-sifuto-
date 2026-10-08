@@ -8,8 +8,8 @@ function conditionPanel(){
 function conditionSnapshot(){
  const m=mo(),lines=[current+' の現在の有効設定',ShiftConditions.settings(m.rules),'','職員ごとの条件（夜勤可否が優先。職種のみでは制限しません）'];
  for(const p of state.members)lines.push(p.name+'／'+p.role+'／'+(p.employmentType==='part'?'パート':'正社員')+(p.usesI?'・I勤務・月9日休':'')+'／'+(p.night?'夜勤可・月'+p.nightMax+'回まで':'夜勤不可')+'／勤務曜日：'+p.weekdays.map(w=>'日月火水木金土'[w]).join('・')+'／在籍：'+(p.start||'指定なし')+'〜'+(p.end||'指定なし')+'／今月の目安：'+E.target(p,m,n())+'時間'+E.targetModeLabel(p)+'／前月末：'+(E.prior(state,current,p)||'未指定'));
- lines.push('','職員専用の個別メモ・勤務条件（認識できる条件は必須適用。未対応文がある場合は自動作成を停止）');
- for(const p of state.members)if(p.memberPrompt){const parsed=E.parseMemberPrompt(p.memberPrompt),applied=[...(parsed.onlyShifts.length?['勤務を'+parsed.onlyShifts.join('・')+'のみに限定']:[]),...(parsed.nightOnly?['夜勤専門']:[]),...(parsed.gAllowed?['G勤務が可能（残り6〜7時間でG候補）']:[])];lines.push(p.name+'：'+p.memberPrompt);lines.push('自動適用：'+(applied.join('／')||'追加なし'));if(parsed.notes.length)lines.push('未対応の重要メモあり：自動作成を停止して確認');}
+ lines.push('','職員専用の個別メモ・勤務条件（氏名・勤務限定欄・メモの指定を必須適用。未対応文がある場合は勤務を割り当てない）');
+ for(const p of state.members){const parsed=E.memberConditions(p),applied=[...(parsed.onlyShifts.length?['勤務を'+parsed.onlyShifts.join('・')+'のみに限定']:[]),...(parsed.nightOnly?['夜勤専門']:[]),...(parsed.gAllowed?['G勤務が可能（残り6〜7時間でG候補）']:[])];if(!p.memberPrompt&&!p.allowedShift&&!applied.length)continue;lines.push(p.name+'：'+(p.memberPrompt||'個別メモなし')+(p.allowedShift?'／勤務限定欄：'+p.allowedShift+'のみ':''));lines.push('自動適用：'+(applied.join('／')||'追加なし'));if(parsed.notes.length)lines.push('未対応の重要メモあり：自動作成を停止して確認');if(parsed.errors.length)lines.push('勤務条件の矛盾あり：'+parsed.errors.join('／'));}
  lines.push('',meetingConditionText(),'','希望休・有給・出勤希望（出勤希望を優先し、他の日も出勤可）');
  for(const p of state.members){const req=range().filter(d=>m.requests[k(p.id,d)]).map(d=>{const request=m.requests[k(p.id,d)],shift=request==='W'?m.workRequests[k(p.id,d)]||'':'';return d+'日'+(request==='W'?'出勤希望'+(shift?'（'+shift+' '+E.shifts[shift].label+'）':''):request==='E'?'希':'有');});if(req.length)lines.push(p.name+'：'+req.join('、'));}
  lines.push('登録合計：'+Object.keys(m.requests).length+'日分','','固定勤務');
@@ -37,7 +37,7 @@ function bindConditionPanel(){
  updateConditionPreview();
 }
 
-function memberSummary(p){return p.role+' / '+employmentLabel(p)+(p.usesI?' / I勤務・月9日休':'')+' / '+(p.night?'夜勤 月'+p.nightMax+'回まで':'夜勤なし')+' / 在籍 '+(p.start||'開始日指定なし')+(p.end?'〜'+p.end:'');}
+function memberSummary(p){const limit=E.memberConditions(p).onlyShifts;return p.role+' / '+employmentLabel(p)+(limit.length?' / 勤務 '+limit.join('・')+'のみ':'')+(p.usesI?' / I勤務・月9日休':'')+' / '+(p.night?'夜勤 月'+p.nightMax+'回まで':'夜勤なし')+' / 在籍 '+(p.start||'開始日指定なし')+(p.end?'〜'+p.end:'');}
 function memberPromptSummary(text){return String(text||'').split(/\r?\n/).map(line=>line.trim()).filter(Boolean).join(' / ');}
 function renderMembers(){content.innerHTML=`${monthlyConditionsPanel()}${conditionPanel()}<div class="panel"><div class="panel-head"><h2>職員 ${state.members.length}人</h2><button class="primary" id="add-member">職員を追加</button></div><p class="desc">サンプルは「編集」で実名・勤務条件に変更できます。不要な職員は「削除」で取り除けます。</p><div class="member-list">${state.members.map(p=>{const promptSummary=memberPromptSummary(p.memberPrompt);return `<div class="member-card"><div class="member-card-main"><p class="member-card-name">${esc(p.name)}</p><span class="subtle member-card-summary">${esc(memberSummary(p))}</span>${promptSummary?'<details class="member-note"><summary>個別メモ・勤務条件：<span class="member-note-value" title="'+esc(promptSummary)+'">'+esc(promptSummary)+'</span></summary><p class="personal-note">'+esc(p.memberPrompt)+'</p></details>':''}</div><div class="member-actions"><button type="button" data-member="${p.id}" aria-label="${esc(p.name)}を編集">編集</button><button type="button" class="danger" data-delete-member="${p.id}" aria-label="${esc(p.name)}を削除">削除</button></div></div>`;}).join('')||'<p class="subtle">職員は未登録です。「職員を追加」から登録してください。</p>'}</div></div><div class="note">サンプルの氏名を編集すると、その職員の勤務条件・希望休・シフトは引き継がれます。実際に職員が入れ替わる場合は、新しい職員として追加してください。退職者の履歴を残す場合は、削除せず最終勤務日を設定します。編集・削除後は「データを保存」してください。</div>`;bindMonthlyConditions();bindConditionPanel();$('#add-member').onclick=()=>memberForm();document.querySelectorAll('[data-member]').forEach(b=>b.onclick=()=>memberForm(b.dataset.member));document.querySelectorAll('[data-delete-member]').forEach(b=>b.onclick=()=>confirmMemberDelete(b.dataset.deleteMember));}
 function confirmMemberDelete(id){
@@ -51,23 +51,23 @@ function confirmMemberDelete(id){
  $('#yes').textContent='この職員を削除';$('#yes').className='danger';$('#no').focus();
 }
 
-function personalConditionPreview(text,night){
- const parsed=E.parseMemberPrompt(text),errors=E.memberConditionErrors({night},parsed),lines=[];
+function personalConditionPreview(text,night,person={}){
+ const member={...person,memberPrompt:text,night},parsed=E.memberConditions(member),errors=E.memberConditionErrors(member,parsed),lines=[];
  if(parsed.onlyShifts.length)lines.push('必須条件：勤務を「'+parsed.onlyShifts.join('・')+'」だけに限定します。休日E・有給Fは利用できます。自動作成・手動変更・出勤希望のすべてで指定外の勤務を禁止します。');
  if(parsed.nightOnly)lines.push('夜勤専門：D・dのみ勤務。休日E・有給Fは利用できます。夜勤上限や勤務可能曜日は引き続き守ります。');
  if(parsed.gAllowed)lines.push('G勤務が可能：'+(parsed.onlyShifts.length?'限定勤務の条件を優先します。':'B・Cも候補です。月の時間目安まで残り6〜7時間の場合はG（6時間）を自動割当の候補にします。G専任の指定ではありません。'));
  if(!lines.length)lines.push('追加の自動割当条件はありません。');
  return '<strong>自動作成に反映する内容</strong><p>'+lines.map(esc).join('<br>')+'</p>'+
  (errors.length?'<p class="form-error">'+errors.map(esc).join('<br>')+'</p>':'')+
- (parsed.notes.length?'<p class="form-error"><strong>要確認：</strong>次の文章は自動判定できないため、この職員を含むシフトの自動作成を停止します。対応形式に直すか、内容を確認して手動で勤務を設定してください。</p><pre class="personal-note">'+esc(parsed.notes.join('\n'))+'</pre>':'');
+ (parsed.notes.length?'<p class="form-error"><strong>要確認：</strong>次の文章は自動判定できません。見落としを防ぐため、この職員への勤務割当と自動作成を停止します。勤務限定欄だけでは解除されません。内容を明確な条件に直してから保存してください。</p><pre class="personal-note">'+esc(parsed.notes.join('\n'))+'</pre>':'');
 }
 function memberPromptFields(p){
- return '<section class="full personal-conditions"><label class="field" for="member-prompt">個別メモ・勤務条件（この職員専用・必ず確認）<textarea id="member-prompt" name="memberPrompt" rows="4" maxlength="2000" aria-describedby="member-prompt-help" placeholder="例：Gのみ勤務可能">'+esc(p.memberPrompt||'')+'</textarea></label><div class="toolbar"><button type="button" data-personal-example="Gのみ勤務可能">Gのみ勤務を入力</button><button type="button" data-personal-example="G勤務：可能">G勤務が可能を入力</button><button type="button" data-personal-example="勤務区分：夜勤専門">夜勤専門を入力</button></div><p id="member-prompt-help" class="subtle">1行に1条件、2,000文字まで。「Bのみ」「Gのみ」「B・Cのみ勤務可能」のような限定は必須条件として全月へ適用します。自動判定できない文章がある場合は、重要事項を無視しないよう自動作成を停止します。保存すると、作成済みシフトにある条件外の勤務は空白へ戻します。</p><div id="member-prompt-preview" role="status" aria-live="polite">'+personalConditionPreview(p.memberPrompt||'',p.night)+'</div></section>';
+ return '<section class="full personal-conditions"><label class="field">勤務限定（必ず守る）<select name="allowedShift" id="allowed-shift">'+options([['','指定なし'],['B','Bのみ'],['G','Gのみ']],p.allowedShift||'')+'</select><small>Gのみの職員にB・C、Bのみの職員にCを入れません。組めない日は空欄にします。</small></label><label class="field full" for="member-prompt">個別メモ・勤務条件（この職員専用・必ず確認）<textarea id="member-prompt" name="memberPrompt" rows="4" maxlength="2000" aria-describedby="member-prompt-help" placeholder="例：Gのみ勤務可能">'+esc(p.memberPrompt||'')+'</textarea></label><div class="toolbar"><button type="button" data-personal-example="Gのみ勤務可能">Gのみ勤務を入力</button><button type="button" data-personal-example="G勤務：可能">G勤務が可能を入力</button><button type="button" data-personal-example="勤務区分：夜勤専門">夜勤専門を入力</button></div><p id="member-prompt-help" class="subtle">1行に1条件、2,000文字まで。「Bのみ」「Gのみ」「B・Cのみ勤務可能」のような限定は必須条件として全月へ適用します。自動判定できない文章がある場合は、重要事項を無視しないよう自動作成を停止します。保存すると、作成済みシフトにある条件外の勤務は空白へ戻します。</p><div id="member-prompt-preview" role="status" aria-live="polite">'+personalConditionPreview(p.memberPrompt||'',p.night,p)+'</div></section>';
 }
 function bindMemberPrompt(){
- const input=$('#member-prompt'),night=$('#person-form select[name="night"]');
- const refresh=()=>{$('#member-prompt-preview').innerHTML=personalConditionPreview(input.value,night.value==='yes');};
- input.oninput=refresh;night.onchange=refresh;
+ const input=$('#member-prompt'),night=$('#person-form select[name="night"]'),limit=$('#allowed-shift'),name=$('#person-form input[name="name"]');
+ const refresh=()=>{$('#member-prompt-preview').innerHTML=personalConditionPreview(input.value,night.value==='yes',{name:name.value,allowedShift:limit.value});};
+ input.oninput=refresh;night.onchange=refresh;limit.onchange=refresh;name.oninput=refresh;
  dialog.querySelectorAll('[data-personal-example]').forEach(button=>button.onclick=()=>{
   const line=button.dataset.personalExample;
   if(!input.value.split(/\r?\n/).some(x=>x.trim()===line)){
@@ -120,7 +120,7 @@ function editPerson(id,isUser){
   Object.assign(p,{name:String(f.get('name')).trim(),start:f.get('start'),end:f.get('end'),weekdays:f.getAll('weekdays').map(Number)});
   if(!p.name){$('#form-error').textContent='氏名を入力してください。';return;}
   if(isUser)p.type=f.get('type');
- else{const selectedRole=String(f.get('role')||''),role=(selectedRole==='__custom__'?String(f.get('customRole')||''):selectedRole).trim();if(!role||role.length>50){$('#form-error').textContent='手書きの職種名を1〜50文字で入力してください。';return;}Object.assign(p,{role,employmentType:f.get('employmentType'),usesI:f.get('usesI')==='yes',night:f.get('night')==='yes',nightMax:+f.get('nightMax'),target:+f.get('target'),targetMode:f.get('targetMode')==='min'?'min':'max',memberPrompt:String(f.get('memberPrompt')||'')});}
+ else{const selectedRole=String(f.get('role')||''),role=(selectedRole==='__custom__'?String(f.get('customRole')||''):selectedRole).trim();if(!role||role.length>50){$('#form-error').textContent='手書きの職種名を1〜50文字で入力してください。';return;}Object.assign(p,{role,employmentType:f.get('employmentType'),usesI:f.get('usesI')==='yes',night:f.get('night')==='yes',nightMax:+f.get('nightMax'),target:+f.get('target'),targetMode:f.get('targetMode')==='min'?'min':'max',allowedShift:String(f.get('allowedShift')||''),memberPrompt:String(f.get('memberPrompt')||'')});}
   if(!isUser){const errors=E.memberConditionErrors(p);if(errors.length){$('#form-error').textContent=errors.join(' ');return;}}
   let cleared=0;if(!change(()=>{const targetList=isUser?state.users:state.members;if(!isUser&&!E.roles.includes(p.role)&&!state.customRoles.includes(p.role))state.customRoles.push(p.role);if(!isUser&&id)cleared=E.clearMemberConditionConflicts(state,p);if(id)targetList[targetList.findIndex(x=>x.id===id)]=p;else targetList.push(p);},!isUser,editingStaffRevision))return;
   close();toast(cleared?'保存しました。条件外の勤務を'+cleared+'件、空白にしました。':'保存しました');
