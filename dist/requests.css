@@ -126,3 +126,39 @@ body.schedule-expanded #schedule-viewport{flex:1;min-height:0;height:auto;max-he
  .is-fit .schedule-grid tbody:not(.daily-count-rows) td:nth-last-child(-n+3){font-size:15px}
 }
 @media screen and (max-width:800px){body{font-size:18px}h1{font-size:30px}h2{font-size:25px}nav button{font-size:18px}.panel{padding:18px}.month-label,.field,.desc,.subtle,.legend,.note,footer{font-size:16px}}
+
+/* Large, high-contrast screen mode requested for everyday operation. */
+@media screen{
+ :root{--ink:#000;--muted:#000}
+ body{color:#000;font-size:28px;line-height:1.65;font-weight:600}
+ button,input,select,textarea{color:#000;font-size:26px;font-weight:600}
+ button{min-height:66px;padding:14px 24px;font-size:26px;border-width:2px}
+ input,select{min-height:66px;padding:13px 16px;border-width:2px}
+ h1{font-size:48px;font-weight:800}h2{font-size:40px;font-weight:800}h3{font-size:32px;font-weight:800}
+ .brand strong{font-size:40px;font-weight:800}.brand small,.sample,.eyebrow{font-size:22px;color:#000;font-weight:700}
+ .mark{width:62px;height:62px;font-size:34px;line-height:62px}
+ .month-label,.field,.desc,.subtle,.legend,.note,footer,.util-note,.form-error{font-size:25px;color:#000;font-weight:600}
+ .field small,.person-role,thead th small{font-size:21px;color:#000;font-weight:600}
+ nav{width:min(1180px,100%);padding:9px}nav button{min-height:82px;font-size:29px;font-weight:800}nav span{inline-size:46px;block-size:46px;font-size:21px}
+ .panel{padding:34px;border-width:2px}.panel-head{margin-bottom:24px}
+ .primary,nav button.active,.cal-day.selected,.date-day.selected,#toast,.mark{color:#fff}
+ .chip,.b,.c,.night,.off,.paid,.short{color:#000;font-size:24px;font-weight:800}
+ table{font-size:24px;font-weight:700}th,td{padding:14px}.person-name{font-size:27px;font-weight:800}.member-card-summary,.member-note,.personal-note{font-size:24px;font-weight:600}.member-card{min-height:76px;padding:13px 0}
+ .cell{min-width:62px;min-height:58px;font-size:27px;font-weight:800;border-width:2px}
+ .summary-row th,.summary-row td,.stat span,.issue-link{font-size:22px}.stat strong{font-size:42px}.stat{padding:22px 28px}
+ dialog{max-width:980px;padding:34px}dialog h2{font-size:42px}.choice{min-height:92px}.choice strong{font-size:31px}.choice small{font-size:22px}
+ .request-controls{gap:32px}.request-controls .field,.request-controls select,#request-date,#register-request,.request-date-input button{font-size:26px}.request-controls select,#request-date,#register-request,.request-date-input button{min-height:68px}
+ #request-person{width:430px}#request-kind{width:320px}#request-shift{width:390px}#request-shift:disabled{color:#000;opacity:.72}
+ .request-summary-compact,.request-summary-heading h3,.request-tags button,.details summary,.paid-year-note,.condition-snapshot,.condition-panel textarea,.equivalent-note{font-size:24px;font-weight:600}
+ .condition-panel textarea{line-height:1.75}.calendar .cal-week,.request-date-calendar .cal-week,.date-day{font-size:25px}.cal-day{height:94px}.cal-day strong{font-size:31px}.cal-day small{font-size:21px}
+ .daily-count-rows td,.daily-count-rows th .chip,.daily-count-rows .counts-heading th,.daily-count-rows .counts-heading td,.equivalent-row th,.equivalent-row td{font-size:24px}.equivalent-row small{font-size:20px}
+ .annual-paid-badge{font-size:22px}.annual-paid-badge strong{font-size:29px}.paid-person-period{font-size:18px}
+ .sunday,.saturday,.person-role,.member-note-value,.request-summary-label,.request-summary-empty{color:#000}
+ .is-fit .schedule-grid{width:max(100%,3550px);font-size:24px;line-height:1.45}
+ .is-fit .schedule-name-col{width:470px}.is-fit .schedule-day-col{width:82px}.is-fit .schedule-meta-col{width:170px}
+ .is-fit .schedule-grid thead th,.is-fit .person-name,.is-fit .daily-count-rows td,.is-fit .daily-count-rows .chip,.is-fit .daily-count-rows .counts-heading th,.is-fit .daily-count-rows .counts-heading td,.is-fit .equivalent-row th,.is-fit .equivalent-row td{font-size:24px}
+ .is-fit .schedule-grid thead th small,.is-fit .person-role,.is-fit .equivalent-row small{font-size:20px}
+ .is-fit .schedule-grid .cell{height:58px;min-height:58px;font-size:27px}
+ .is-fit .schedule-grid tbody:not(.daily-count-rows) td:nth-last-child(-n+3){font-size:21px}
+}
+@media screen and (max-width:800px){body{font-size:24px}h1{font-size:40px}h2{font-size:34px}nav button{font-size:24px}.panel{padding:22px}.month-label,.field,.desc,.subtle,.legend,.note,footer{font-size:22px}}
