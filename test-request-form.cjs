@@ -47,7 +47,7 @@ assert(combinedTable.lastIndexOf('data-edit=')<combinedTable.indexOf('id="daily-
 assert(combinedTable.indexOf('id="daily-counts"')<combinedTable.indexOf('class="equivalent-row"'));
 for(const row of combinedTable.matchAll(/<tr(?: [^>]*)?>([\s\S]*?)<\/tr>/g)){
  const columns=[...row[1].matchAll(/<(?:td|th)\b([^>]*)>/g)].reduce((sum,cell)=>sum+Number(cell[1].match(/colspan="(\d+)"/)?.[1]||1),0);
- assert.equal(columns,run('n()')+4,'staff, counts and equivalent rows share the same date columns');
+ assert.equal(columns+(row[0].includes('day-header-row')?4:0),run('n()')+4,'staff, counts and equivalent rows share the same date columns');
 }
 assert(el('#content').innerHTML.includes('id="daily-counts"'));
 for(const code of ['B','C','D'])assert(el('#content').innerHTML.includes('data-count-code="'+code+'"'));
@@ -133,6 +133,7 @@ el('#to-counts').onclick();assert.equal(el('#daily-counts').scrolled,true);
 run("current='2028-02';mo().generated=true;render()");
 assert.equal((el('#content').innerHTML.match(/data-count-code="B" data-count-day=/g)||[]).length,29);
 assert.equal((el('#content').innerHTML.match(/class="equivalent-row"/g)||[]).length,1);
+assert.equal(run('weekHeaders(31)'),'<th class="week-group" colspan="7" scope="colgroup">1週目</th><th class="week-group" colspan="7" scope="colgroup">2週目</th><th class="week-group" colspan="7" scope="colgroup">3週目</th><th class="week-group" colspan="7" scope="colgroup">4週目</th><th class="week-group" colspan="3" scope="colgroup">5週目</th>');assert.equal((run('weekHeaders(28)').match(/週目/g)||[]).length,4);assert(el('#content').innerHTML.includes('class="week-group-row"'));assert(el('#content').innerHTML.includes('class="day-header-row"'));
 console.log('PASS: one shared schedule/counts table, all columns aligned, one equivalent footer, edits/undo, jump target and leap-month counts');
 
 assert.equal(run('fitHeightScale(600,1200)'),0.5);
