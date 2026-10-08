@@ -27,6 +27,11 @@ cm.schedule['s2:1']='G';assert.equal(E.dailyCounts(c,'2028-02')[0].counts.G,2);a
 assert.equal(E.dailyCounts(c,'2028-03')[0].counts.G,0);assert.equal(Object.hasOwn(E.shifts,'A'),false);
 assert.deepEqual(E.checkData(E.copy(c)),c);const legacyA=E.copy(c);legacyA.months['2028-02'].schedule['s1:1']='A';assert.throws(()=>E.checkData(legacyA),/勤務記号/);
 console.log('PASS: exact-code daily counts, A removal, tenure exclusion, leap month, separate months and unsupported legacy A rejection');
+const hourState=E.fresh(),hourMonth=E.month(hourState,m),hourPerson=hourState.members[0],hourCodes=['B','C','D','d','E','F','G','J','L','M',"C'","/C'",'I','/B','/C'];
+hourCodes.forEach((code,index)=>hourMonth.schedule[E.key(hourPerson.id,index+1)]=code);
+assert.equal(E.projectedHours(hourState,m,hourPerson),95,'各勤務記号の登録時間を合計する');
+assert.equal(E.projectedHours(hourState,m,hourPerson,[[1,'E'],[2,'/B']]),83,'変更予定の勤務時間でも同じ時間表を使う');
+console.log('PASS: monthly hours add exact per-shift values for full, short, night, paid and half-day codes');
 assert.equal(E.equivalentTenths('G'),7);assert.equal(E.equivalentTenths('I'),8);
 for(const code of ['B','C','D','d'])assert.equal(E.equivalentTenths(code),10);
 for(const code of ['A','E','F','/B','/C','',undefined])assert.equal(E.equivalentTenths(code),0);

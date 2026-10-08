@@ -42,6 +42,9 @@ assert.equal((el('#content').innerHTML.match(/class="equivalent-row"/g)||[]).len
 assert.equal((el('#content').innerHTML.match(/<table\b/g)||[]).length,1);
 assert(!el('#content').innerHTML.includes('counts-table'));
 const combinedTable=el('#content').innerHTML.match(/<table class="schedule-grid"[^>]*>([\s\S]*?)<\/table>/)[1];
+assert(combinedTable.includes('合計時間 / 目安'));
+assert(el('#content').innerHTML.includes('<strong>合計時間：</strong>B・C・C\'・D・d・Fは各8時間'));
+assert.equal(run("scheduleHourBreakdown(['B','B','G','E','F'])"),'B 8時間×2日=16時間、F 8時間×1日=8時間、G 6時間×1日=6時間（E・空欄は0時間）');
 assert(combinedTable.includes('id="daily-counts"'));
 assert(combinedTable.lastIndexOf('data-edit=')<combinedTable.indexOf('id="daily-counts"'));
 assert(combinedTable.indexOf('id="daily-counts"')<combinedTable.indexOf('class="equivalent-row"'));
