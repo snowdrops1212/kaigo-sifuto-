@@ -223,6 +223,8 @@ const confirmation=el('#confirm');confirmation.showModal=function(){this.open=tr
 run("state=E.fresh();current='2026-12';tab='members';requestPerson='s1';undo=[];redo=[];dirty=false;mo().requests['s1:1']='F';mo().schedule['s1:1']='F';mo().locks['s1:1']=true;mo().targets.s1=160;mo().previous.s1='B';mo().requests['s10:1']='F';E.month(state,'2027-01').requests['s1:2']='E';E.month(state,'2027-01').schedule['s1:2']='E';render()");
 assert.equal((el('#content').innerHTML.match(/data-delete-member=/g)||[]).length,12);
 assert(el('#content').innerHTML.includes('aria-label="管理者（サンプル）を削除"'));
+assert(el('#content').innerHTML.includes('<p class="member-card-name">管理者（サンプル）</p><span class="subtle member-card-summary">管理者 / 正社員 / 夜勤なし / 在籍 開始日指定なし</span>'));
+assert.equal(run("memberSummary(state.members[0])"),'管理者 / 正社員 / 夜勤なし / 在籍 開始日指定なし');assert(fs.readFileSync('./dist/style.css','utf8').includes('.member-card-summary{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap'));
 assert(el('#content').innerHTML.includes('最終勤務日を設定'));
 const beforeMemberDelete=run('JSON.stringify(state)');
 run("confirmMemberDelete('s1')");assert.equal(confirmation.open,true);
