@@ -11,7 +11,7 @@ function setShiftRequestsFromAgent(input){
  const p=state.members.find(x=>x.id===input.memberId);
  if(!p||!Array.isArray(input.days)||!input.days.length||!['E','F','W'].includes(input.type)||input.days.some(d=>!Number.isInteger(d)||d<1||d>n()||!E.active(p,current,d)))throw Error('職員・日付・希望の種類を確認してください。');
  const workShift=String(input.workShift||'');
- if(workShift&&(input.type!=='W'||p.employmentType!=='part'||!E.workRequestShifts.includes(workShift)||!E.memberShiftAllowed(p,workShift)))throw Error('パート職員の出勤希望勤務を確認してください。');
+ if(workShift&&(input.type!=='W'||!E.workRequestShiftAllowed(p,workShift)))throw Error('出勤希望勤務を確認してください。');
  if(input.type==='F')for(const day of input.days){const eligibility=E.paidLeaveEligibility(p,E.iso(current,day));if(!eligibility.allowed)throw Error(`${day}日：${eligibility.reason}。職員情報の入職日を確認してください。`);}
  change(()=>{for(const day of input.days){const cell=k(p.id,day);mo().requests[cell]=input.type;if(workShift)mo().workRequests[cell]=workShift;else delete mo().workRequests[cell];}});
  return {month:current,registered:input.days.length};
@@ -19,7 +19,7 @@ function setShiftRequestsFromAgent(input){
 if(document.modelContext?.registerTool){
  const tools=[
   {name:'read_shift_requests',title:'希望休を確認',description:'選択中の月の希望休を読み取ります。',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute:()=>({month:current,requests:mo().requests,workRequests:mo().workRequests,members:state.members.map(p=>({id:p.id,name:p.name}))})},
-  {name:'set_shift_requests',title:'希望休を登録',description:'指定職員の指定日に希望休・有給・出勤希望（W）を登録。パートの出勤希望は勤務記号も指定できます。シフト自体は変更しません。',inputSchema:{type:'object',properties:{memberId:{type:'string'},days:{type:'array',items:{type:'integer'}},type:{type:'string',enum:['E','F','W']},workShift:{type:'string',enum:['B','C','G','I','/B','/C']}},required:['memberId','days','type'],additionalProperties:false},annotations:{readOnlyHint:false},execute:setShiftRequestsFromAgent}
+  {name:'set_shift_requests',title:'希望休を登録',description:'指定職員の指定日に希望休・有給・出勤希望（W）を登録。正社員・パートとも出勤希望では勤務記号を指定できます。シフト自体は変更しません。',inputSchema:{type:'object',properties:{memberId:{type:'string'},days:{type:'array',items:{type:'integer'}},type:{type:'string',enum:['E','F','W']},workShift:{type:'string',enum:['G','J','L','M','C','/C',"C'","/C'",'D','B','I','/B']}},required:['memberId','days','type'],additionalProperties:false},annotations:{readOnlyHint:false},execute:setShiftRequestsFromAgent}
  ];
  for(const tool of tools)try{Promise.resolve(document.modelContext.registerTool(tool)).catch(()=>{});}catch{}
 }

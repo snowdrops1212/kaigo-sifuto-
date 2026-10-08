@@ -65,11 +65,11 @@ function bindMeetingControls(){
  document.querySelectorAll('[data-remove-meeting]').forEach(b=>b.onclick=()=>removeMeetingDay(Number(b.dataset.removeMeeting)));
 }
 
-function requestShiftChoices(p){return p?.employmentType==='part'?E.workRequestShifts.filter(code=>E.memberShiftAllowed(p,code)).map(code=>[code,code+' '+E.shifts[code].label]):[];}
+function requestShiftChoices(p){return E.workRequestShifts.filter(code=>E.workRequestShiftAllowed(p,code)).map(code=>{const shift=E.shifts[code],time=(shift.requestTime||shift.time).replaceAll(':','：').replaceAll('–','～');return [code,code+'＝'+time];});}
 function requestShiftControl(){const p=state.members.find(person=>person.id===requestPerson),choices=requestKind==='W'?requestShiftChoices(p):[],enabled=choices.length>0;if(enabled&&!choices.some(([code])=>code===requestShift))requestShift=choices[0][0];return '<label class="field">希望勤務<select id="request-shift" '+(enabled?'':'disabled')+' aria-describedby="request-date-help">'+options(enabled?choices:[['','—']],enabled?requestShift:'')+'</select></label>';}
 function requestControls(){
  if(requestPerson&&!state.members.some(p=>p.id===requestPerson))requestPerson='';
- return '<form class="request-controls" id="request-form"><label class="field">職員<select id="request-person" required>'+options([['','職員を選択'],...state.members.map(p=>[p.id,p.name])],requestPerson)+'</select></label><label class="field">希望の種類<select id="request-kind">'+options([['E','希望休'],['F','有給'],['W','出勤希望']],requestKind)+'</select></label>'+requestShiftControl()+'<div class="field request-date-field"><label for="request-date">日付</label><div class="request-date-input"><input id="request-date" type="text" inputmode="numeric" autocomplete="off" required placeholder="2026/10/01" aria-describedby="request-date-help" value="'+esc(requestDate)+'"><button id="open-request-calendar" type="button" aria-haspopup="dialog" aria-controls="editor">カレンダー</button></div></div><button id="register-request" type="submit" class="primary">登録</button><p class="desc" id="request-date-help">日付は年/月/日で入力、またはカレンダーから選択できます。パートの出勤希望では希望勤務を選びます。正社員では「—」になり、勤務記号は指定しません。出勤希望は優先して勤務を組み、希望日以外にも出勤できます。同じ職員・同じ日の希望は、最後に登録した内容に置き換わります。</p></form>';
+ return '<form class="request-controls" id="request-form"><label class="field">職員<select id="request-person" required>'+options([['','職員を選択'],...state.members.map(p=>[p.id,p.name])],requestPerson)+'</select></label><label class="field">希望の種類<select id="request-kind">'+options([['E','希望休'],['F','有給'],['W','出勤希望']],requestKind)+'</select></label>'+requestShiftControl()+'<div class="field request-date-field"><label for="request-date">日付</label><div class="request-date-input"><input id="request-date" type="text" inputmode="numeric" autocomplete="off" required placeholder="2026/10/01" aria-describedby="request-date-help" value="'+esc(requestDate)+'"><button id="open-request-calendar" type="button" aria-haspopup="dialog" aria-controls="editor">カレンダー</button></div></div><button id="register-request" type="submit" class="primary">登録</button><p class="desc" id="request-date-help">日付は年/月/日で入力、またはカレンダーから選択できます。正社員・パートとも、出勤希望の時だけ希望勤務を選べます。希望休・有給では「—」の無効な欄になります。出勤希望は優先して勤務を組み、希望日以外にも出勤できます。同じ職員・同じ日の希望は、最後に登録した内容に置き換わります。</p></form>';
 }
 function bindRequestControls(){
  bindMeetingControls();
@@ -88,8 +88,8 @@ function bindRequestControls(){
    const eligibility=E.paidLeaveEligibility(p,date);
    if(!eligibility.allowed)return toast(eligibility.reason+'。職員情報の入職日を確認してください。');
   }
-  const requestedShift=requestKind==='W'&&p.employmentType==='part'?requestShift:'',allowed=requestShiftChoices(p).some(([code])=>code===requestedShift);
-  if(requestKind==='W'&&p.employmentType==='part'&&!allowed)return toast('パート職員の希望勤務を選んでください。');
+  const requestedShift=requestKind==='W'?requestShift:'',allowed=requestShiftChoices(p).some(([code])=>code===requestedShift);
+  if(requestKind==='W'&&!allowed)return toast('希望勤務を選んでください。');
   const id=k(p.id,day),existing=state.months[targetMonth];
   const showTarget=()=>{requestDate=date;current=targetMonth;$('#month').value=current;};
   if(existing?.requests[id]===requestKind&&(requestedShift?existing.workRequests?.[id]===requestedShift:!existing?.workRequests?.[id])){showTarget();render();return toast('同じ内容が登録済みです。');}

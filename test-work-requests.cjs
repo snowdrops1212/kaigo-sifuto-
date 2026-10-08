@@ -31,15 +31,20 @@ E.generate(s2,m);assert.equal(r2.schedule['s3:1'],'d');assert.equal(r2.schedule[
 assert(!Object.entries(r2.schedule).some(([k,c])=>k.startsWith('s3:')&&['B','C','G'].includes(c)));
 assert(E.validate(s2,m).some(x=>x.type==='workRequest'&&x.d===2));
 
-// Part-time work requests can specify the exact daytime shift and remain soft constraints.
+// Part-time work requests can specify the exact shift and remain soft constraints.
 const typed=E.fresh(),typedMonth=E.month(typed,m),typedPart=typed.members[2];typedPart.employmentType='part';typedPart.night=false;typedPart.target=176;typedPart.targetMode='min';typedMonth.rules.D=0;
-for(const [day,code] of [[6,'B'],[7,'C'],[8,'G'],[9,'/B'],[10,'/C']]){const cell=E.key(typedPart.id,day);typedMonth.requests[cell]='W';typedMonth.workRequests[cell]=code;}
+const typedRequests=[[2,'B'],[4,'C'],[6,'G'],[8,'/B'],[10,'/C'],[12,'J'],[14,'L'],[16,'M'],[18,"C'"],[20,"/C'"]];
+for(const [day,code] of typedRequests){const cell=E.key(typedPart.id,day);typedMonth.requests[cell]='W';typedMonth.workRequests[cell]=code;}
 E.generate(typed,m);
-for(const [day,code] of [[6,'B'],[7,'C'],[8,'G'],[9,'/B'],[10,'/C']])assert.equal(typedMonth.schedule[E.key(typedPart.id,day)],code,day+'日の希望勤務を優先する');
+for(const [day,code] of typedRequests)assert.equal(typedMonth.schedule[E.key(typedPart.id,day)],code,day+'日の希望勤務を優先する');
 assert(!E.validate(typed,m).some(x=>x.type==='workRequest'&&x.id===typedPart.id));
 assert.deepEqual(E.checkData(E.copy(typed)),typed,'希望勤務を保存・読込できる');
-const invalidFull=E.copy(typed);invalidFull.members[2].employmentType='full';assert.throws(()=>E.checkData(invalidFull),/パート職員の出勤希望勤務/);
-const invalidLink=E.copy(typed);invalidLink.months[m].requests[E.key(typedPart.id,6)]='E';assert.throws(()=>E.checkData(invalidLink),/パート職員の出勤希望勤務/);
+assert.deepEqual(E.workRequestShifts.slice(0,9),['G','J','L','M','C','/C',"C'","/C'",'D']);
+assert.equal(E.shifts.J.time,'9:30–15:30');assert.equal(E.shifts.L.hours,7);assert.equal(E.shifts.M.hours,7);assert.equal(E.shifts["C'"].hours,8);assert.equal(E.shifts["/C'"].hours,6);assert.equal(E.shifts.D.requestTime,'16:30–22:30');
+assert.equal(E.workRequestShiftAllowed(typedPart,'D'),false,'夜勤不可の職員はDを選べない');typedPart.night=true;assert.equal(E.workRequestShiftAllowed(typedPart,'D'),true,'夜勤可能なパートはDを選べる');typedPart.employmentType='full';assert.equal(E.workRequestShiftAllowed(typedPart,'G'),true,'正社員も希望勤務を選べる');assert.equal(E.workRequestShiftAllowed(typedPart,'D'),true,'夜勤可能な正社員もDを選べる');typedPart.employmentType='part';typedPart.night=false;
+const fullTime=E.copy(typed);fullTime.members[2].employmentType='full';assert.deepEqual(E.checkData(fullTime),fullTime,'正社員も希望勤務を保存・読込できる');
+const invalidFullI=E.copy(typed);invalidFullI.members[2].employmentType='full';invalidFullI.months[m].workRequests[E.key(typedPart.id,6)]='I';assert.throws(()=>E.checkData(invalidFullI),/出勤希望勤務/,'正社員はパート専用Iを選べない');
+const invalidLink=E.copy(typed);invalidLink.months[m].requests[E.key(typedPart.id,6)]='E';assert.throws(()=>E.checkData(invalidLink),/出勤希望勤務/);
 const legacy=E.copy(typed);delete legacy.months[m].workRequests;E.checkData(legacy);assert.deepEqual(legacy.months[m].workRequests,{},'旧保存データには空の希望勤務を補う');
 assert.equal(E.memberRemovalSummary(s,p.id).requests,5);E.removeMember(s,p.id);
 assert(!Object.keys(r.requests).some(k=>k.startsWith('s3:')));
