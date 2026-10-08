@@ -147,12 +147,15 @@ assert.equal(run('fitCanvasWidth(2577,2400,0.5,1.35)'),6475);
 assert.equal(run('fitCanvasWidth(2577,3000,1)'),2998);
 const viewState=run('JSON.stringify(state)'),viewUndo=run('undo.length');
 assert(el('#content').innerHTML.includes('schedule-viewport is-fit'));
-assert(el('#content').innerHTML.includes('全行を表示し、カレンダー部分だけを2本指で左右に動かせます'));
+assert(el('#content').innerHTML.includes('最初は表全体を表示。2本指で左右にずらすと外側の白い余白まで動かせます'));
 const viewport=el('#schedule-viewport'),canvas=el('#schedule-canvas');
 Object.assign(viewport,{clientHeight:602,clientWidth:2400,scrollTop:50,scrollLeft:250});
 Object.assign(canvas,{offsetHeight:1200,offsetWidth:1800});
 run('fitScheduleTable()');
-assert.equal(canvas.style.zoom,'0.5');assert.equal(canvas.style.width,'6475px');assert.equal(Number.parseFloat(canvas.style.width)*Number.parseFloat(canvas.style.zoom),3237.5);assert.equal(viewport.scrollTop,0);assert.equal(viewport.scrollLeft,0);
+assert.equal(canvas.style.zoom,'0.5');assert.equal(canvas.style.width,'4796px');assert.equal(canvas.style.paddingInline,'4796px');assert.equal(Number.parseFloat(canvas.style.width)*Number.parseFloat(canvas.style.zoom),2398);assert.equal(viewport.scrollTop,0);assert.equal(viewport.scrollLeft,2398);
+Object.assign(viewport,{clientWidth:2400,scrollWidth:7194,scrollLeft:2398});
+assert.equal(run("(()=>{const e={deltaX:300,deltaY:10,preventDefault(){this.prevented=true}};panScheduleHorizontally(e);return JSON.stringify([document.querySelector('#schedule-viewport').scrollLeft,e.prevented])})()"),'[2698,true]');
+assert.equal(run("(()=>{const e={deltaX:5,deltaY:300,preventDefault(){this.prevented=true}};panScheduleHorizontally(e);return JSON.stringify([document.querySelector('#schedule-viewport').scrollLeft,e.prevented])})()"),'[2698,true]');
 el('#schedule-expand').onclick();assert.equal(run('scheduleExpanded'),true);
 assert(el('#content').innerHTML.includes('通常画面に戻る'));
 el('#schedule-zoom').onclick();assert.equal(run('scheduleFit'),false);
@@ -168,7 +171,7 @@ el('#schedule-viewport').scrolled=false;el('#schedule-expand').onclick();assert.
 assert.equal(run('JSON.stringify(state)'),viewState);assert.equal(run('undo.length'),viewUndo);
 run("scheduleExpanded=true;tab='members';render()");assert.equal(run('scheduleExpanded'),false);
 run("tab='schedule';render()");
-console.log('PASS: full-height view with horizontal-only panning, expanded/zoom controls and data/undo preservation');
+console.log('PASS: initially complete fit with white-space horizontal panning, expanded/zoom controls and data/undo preservation');
 
 run("state=E.fresh();state.members.find(p=>p.id==='s3').start='2025-01-01';current='2026-10';tab='schedule';requestPerson='s3';requestKind='E';undo=[];redo=[];render()");
 assert(run('requestSummary()').includes('この月の希望休・有給・出勤希望はまだ登録されていません。'));

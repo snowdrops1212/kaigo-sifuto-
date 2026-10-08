@@ -1,23 +1,24 @@
 'use strict';
 // Generated schedule table, viewport behavior, validation display, and cell editing.
-function scheduleViewControls(){return '<div class="schedule-view-toolbar"><div class="toolbar"><button type="button" id="schedule-fit" aria-pressed="'+scheduleFit+'">縦を全体表示</button><button type="button" id="schedule-zoom" aria-pressed="'+(!scheduleFit)+'">文字を大きくする</button><button type="button" id="schedule-expand" class="primary" aria-pressed="'+scheduleExpanded+'">'+(scheduleExpanded?'通常画面に戻る':'表を画面いっぱいに表示')+'</button></div><span id="schedule-view-status" class="subtle" role="status">'+(scheduleFit?'全行を表示し、カレンダー部分だけを2本指で左右に動かせます':'拡大表示：職員名・職種を固定し、2本指で左右に動かせます')+'</span></div>';}
+function scheduleViewControls(){return '<div class="schedule-view-toolbar"><div class="toolbar"><button type="button" id="schedule-fit" aria-pressed="'+scheduleFit+'">全体表示</button><button type="button" id="schedule-zoom" aria-pressed="'+(!scheduleFit)+'">文字を大きくする</button><button type="button" id="schedule-expand" class="primary" aria-pressed="'+scheduleExpanded+'">'+(scheduleExpanded?'通常画面に戻る':'表を画面いっぱいに表示')+'</button></div><span id="schedule-view-status" class="subtle" role="status">'+(scheduleFit?'最初は表全体を表示。2本指で左右にずらすと外側の白い余白まで動かせます':'拡大表示：職員名・職種を固定し、2本指で左右に動かせます')+'</span></div>';}
 function fitHeightScale(height,tableHeight){if([height,tableHeight].some(v=>!Number.isFinite(v)||v<=0))return 1;return Math.min(1,height/tableHeight);}
 function fitWidthScale(width,tableWidth){if([width,tableWidth].some(v=>!Number.isFinite(v)||v<=0))return 1;return Math.min(1,width/tableWidth);}
 function fitCanvasWidth(naturalWidth,viewportWidth,scale,widthRatio=1){if([naturalWidth,viewportWidth,scale,widthRatio].some(v=>!Number.isFinite(v)||v<=0))return naturalWidth;return Math.ceil(Math.max(naturalWidth,(viewportWidth-2)*widthRatio/scale));}
 function fitScheduleTable(){
  const viewport=$('#schedule-viewport'),canvas=$('#schedule-canvas');
  if(tab!=='schedule'||!mo().generated||!viewport||!canvas)return;
- canvas.style.zoom='';canvas.style.width='';
+ canvas.style.zoom='';canvas.style.width='';canvas.style.paddingInline='';
  if(!scheduleFit)return;
  const naturalWidth=438+n()*69,viewportWidth=Number.isFinite(viewport.clientWidth)?viewport.clientWidth:0,availableHeight=Math.max(1,viewport.clientHeight-2);
  canvas.style.width=naturalWidth+'px';
  let height=canvas.offsetHeight;if(!height)return;
- let scale=fitHeightScale(availableHeight,height);
- for(let pass=0;pass<2;pass++){canvas.style.width=fitCanvasWidth(naturalWidth,viewportWidth,scale,1.35)+'px';height=canvas.offsetHeight;if(!height)return;scale=fitHeightScale(availableHeight,height);}
- canvas.style.width=fitCanvasWidth(naturalWidth,viewportWidth,scale,1.35)+'px';
+ let scale=Math.min(fitHeightScale(availableHeight,height),fitWidthScale(viewportWidth-2,naturalWidth));
+ for(let pass=0;pass<2;pass++){const fittedWidth=fitCanvasWidth(naturalWidth,viewportWidth,scale);canvas.style.width=fittedWidth+'px';height=canvas.offsetHeight;if(!height)return;scale=Math.min(fitHeightScale(availableHeight,height),fitWidthScale(viewportWidth-2,fittedWidth));}
+ const fittedWidth=fitCanvasWidth(naturalWidth,viewportWidth,scale),panPadding=Math.ceil((viewportWidth-2)/scale);
+ canvas.style.width=fittedWidth+'px';canvas.style.paddingInline=panPadding+'px';
  canvas.style.zoom=String(scale);
- viewport.scrollTop=0;viewport.scrollLeft=0;
- $('#schedule-view-status').textContent='縦を全体表示 '+Math.round(scale*100)+'%｜カレンダー部分だけを2本指で左右に移動できます。セルをクリックして編集';
+ viewport.scrollTop=0;viewport.scrollLeft=Math.round(panPadding*scale);
+ $('#schedule-view-status').textContent='全体表示 '+Math.round(scale*100)+'%｜最初は全体が見えます。2本指で左右にずらすと外側は白く表示されます。セルをクリックして編集';
 }
 function queueScheduleFit(){if(window.requestAnimationFrame){if(queueScheduleFit.frame)window.cancelAnimationFrame(queueScheduleFit.frame);queueScheduleFit.frame=window.requestAnimationFrame(fitScheduleTable);}else setTimeout(fitScheduleTable,0);}
 function panScheduleHorizontally(event){const viewport=$('#schedule-viewport');if(!viewport||viewport.scrollWidth<=viewport.clientWidth)return;event.preventDefault?.();const delta=Math.abs(event.deltaX||0)>Math.abs(event.deltaY||0)?event.deltaX:(event.shiftKey?event.deltaY:0);if(!delta)return;const before=viewport.scrollLeft,max=Math.max(0,viewport.scrollWidth-viewport.clientWidth);viewport.scrollLeft=Math.max(0,Math.min(max,before+delta));}
