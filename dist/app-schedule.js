@@ -24,7 +24,7 @@ function queueScheduleFit(){if(window.requestAnimationFrame){if(queueScheduleFit
 function bindScheduleView(){
  $('#schedule-fit').onclick=()=>{scheduleFit=true;render();$('#schedule-fit').focus({preventScroll:true});};
  $('#schedule-zoom').onclick=()=>{scheduleFit=false;render();$('#schedule-zoom').focus({preventScroll:true});};
- $('#schedule-expand').onclick=()=>{scheduleExpanded=!scheduleExpanded;render();$('#schedule-expand').focus({preventScroll:true});};
+ $('#schedule-expand').onclick=()=>{const returning=scheduleExpanded;scheduleExpanded=!scheduleExpanded;render();if(returning)$('#schedule-viewport').scrollIntoView({block:'start',behavior:'smooth'});$('#schedule-expand').focus({preventScroll:true});};
  if(typeof ResizeObserver!=='undefined'){scheduleResizeObserver=new ResizeObserver(queueScheduleFit);scheduleResizeObserver.observe($('#schedule-viewport'));}
  queueScheduleFit();
 }

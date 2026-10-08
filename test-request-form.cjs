@@ -154,7 +154,7 @@ el('#schedule-zoom').onclick();assert.equal(run('scheduleFit'),false);
 run('fitScheduleTable()');assert.equal(canvas.style.zoom,'');
 assert(el('#content').innerHTML.includes('schedule-viewport is-zoom'));
 el('#schedule-fit').onclick();assert.equal(run('scheduleFit'),true);
-el('#schedule-expand').onclick();assert.equal(run('scheduleExpanded'),false);
+el('#schedule-viewport').scrolled=false;el('#schedule-expand').onclick();assert.equal(run('scheduleExpanded'),false);assert.equal(el('#schedule-viewport').scrolled,true);
 assert.equal(run('JSON.stringify(state)'),viewState);assert.equal(run('undo.length'),viewUndo);
 run("scheduleExpanded=true;tab='members';render()");assert.equal(run('scheduleExpanded'),false);
 run("tab='schedule';render()");
