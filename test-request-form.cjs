@@ -33,7 +33,7 @@ assert.equal(run("state.months['2026-12'].requests['s3:13']"),'F');assert.equal(
 run("mo().generated=true;mo().schedule['s3:13']='B';mo().locks['s3:13']=true;render()");
 assert(el('#content').innerHTML.includes('id="print-schedule"'));assert(el('#content').innerHTML.indexOf('id="export-csv"')<el('#content').innerHTML.indexOf('id="print-schedule"'));
 el('#print-schedule').onclick();assert.equal(printCalls,1);
-const printCSS=fs.readFileSync('./dist/requests.css','utf8');assert(printCSS.includes('@page{size:A3 landscape'));assert(printCSS.includes('@media print'));assert(printCSS.includes('.is-fit .schedule-day-col{width:48px}'));assert(printCSS.includes('padding:1mm .45mm!important'));
+const printCSS=fs.readFileSync('./dist/requests.css','utf8');assert(printCSS.includes('@page{size:A3 landscape'));assert(printCSS.includes('@media print'));assert(printCSS.includes('.is-fit .schedule-day-col{width:48px}'));assert(printCSS.includes('padding:1mm .45mm!important'));assert(printCSS.includes('.schedule-grid th:first-child,.schedule-grid td:first-child{position:sticky!important;left:0!important'));assert(printCSS.includes('日付部分だけを横に動かせます'));
 assert(el('#content').innerHTML.indexOf('schedule-request-panel')<el('#content').innerHTML.indexOf('class="stats"'));
 assert(!el('#content').innerHTML.includes('summary-row'));
 assert(!el('#content').innerHTML.includes('人数 / 必要'));
