@@ -3,6 +3,7 @@
 function scheduleViewControls(){return '<div class="schedule-view-toolbar"><div class="toolbar"><button type="button" id="schedule-fit" aria-pressed="'+scheduleFit+'">全体表示</button><button type="button" id="schedule-zoom" aria-pressed="'+(!scheduleFit)+'">文字を大きくする</button><button type="button" id="schedule-expand" class="primary" aria-pressed="'+scheduleExpanded+'">'+(scheduleExpanded?'通常画面に戻る':'表を画面いっぱいに表示')+'</button></div><span id="schedule-view-status" class="subtle" role="status">'+(scheduleFit?'表全体をスクロールなしで表示します':'拡大表示：職員名・職種を固定し、2本指で左右に動かせます')+'</span></div>';}
 function fitHeightScale(height,tableHeight){if([height,tableHeight].some(v=>!Number.isFinite(v)||v<=0))return 1;return Math.min(1,height/tableHeight);}
 function fitWidthScale(width,tableWidth){if([width,tableWidth].some(v=>!Number.isFinite(v)||v<=0))return 1;return Math.min(1,width/tableWidth);}
+function fitCanvasWidth(naturalWidth,viewportWidth,scale){if([naturalWidth,viewportWidth,scale].some(v=>!Number.isFinite(v)||v<=0))return naturalWidth;return Math.ceil(Math.max(naturalWidth,(viewportWidth-2)/scale));}
 function fitScheduleTable(){
  const viewport=$('#schedule-viewport'),canvas=$('#schedule-canvas');
  if(tab!=='schedule'||!mo().generated||!viewport||!canvas)return;
@@ -11,7 +12,9 @@ function fitScheduleTable(){
  const naturalWidth=438+n()*69,viewportWidth=Number.isFinite(viewport.clientWidth)?viewport.clientWidth:0,availableHeight=Math.max(1,viewport.clientHeight-2);
  canvas.style.width=naturalWidth+'px';
  let height=canvas.offsetHeight;if(!height)return;
- const scale=Math.min(fitHeightScale(availableHeight,height),fitWidthScale(viewportWidth-2,naturalWidth));
+ let scale=Math.min(fitHeightScale(availableHeight,height),fitWidthScale(viewportWidth-2,naturalWidth));
+ for(let pass=0;pass<2;pass++){const fittedWidth=fitCanvasWidth(naturalWidth,viewportWidth,scale);canvas.style.width=fittedWidth+'px';height=canvas.offsetHeight;if(!height)return;scale=Math.min(fitHeightScale(availableHeight,height),fitWidthScale(viewportWidth-2,fittedWidth));}
+ canvas.style.width=fitCanvasWidth(naturalWidth,viewportWidth,scale)+'px';
  canvas.style.zoom=String(scale);
  viewport.scrollTop=0;viewport.scrollLeft=0;
  $('#schedule-view-status').textContent='全体表示 '+Math.round(scale*100)+'%｜表全体をスクロールなしで表示しています。セルをクリックして編集'+(scale<0.7?'。文字が小さい場合は「文字を大きくする」を選んでください。':'');
