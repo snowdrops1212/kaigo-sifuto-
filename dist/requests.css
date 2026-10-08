@@ -37,10 +37,10 @@ th.paid-person{min-width:310px;max-width:360px}
 #schedule-viewport.is-fit{height:calc(100dvh - 210px);min-height:300px;max-height:820px;overflow-x:scroll;overflow-y:hidden;background:#fff}
 .is-fit .schedule-grid{table-layout:fixed;width:100%;font-size:20px;line-height:1.25;font-weight:800;color:#000!important}
 .is-fit .schedule-grid *{color:#000!important}
-.is-fit .schedule-name-col{width:320px}.is-fit .schedule-day-col{width:62px}.is-fit .schedule-meta-col{width:112px}
+.is-fit .schedule-name-col{width:214px}.is-fit .schedule-day-col{width:69px}.is-fit .schedule-hours-col{width:112px}.is-fit .schedule-night-col,.is-fit .schedule-holiday-col{width:56px}
 .is-fit .schedule-grid th:first-child,.is-fit .schedule-grid td:first-child{min-width:0;max-width:none;position:sticky;left:0}
 .is-fit .schedule-grid th,.is-fit .schedule-grid td{padding:4px 3px;border-right:1px solid #aebbc1}.is-fit .schedule-grid thead th{position:static;font-size:20px;padding:7px 3px}.is-fit .schedule-grid thead th small{font-size:16px;margin-top:3px}
-.is-fit .schedule-grid tbody:not(.daily-count-rows) th:first-child{padding:0}.is-fit .person-heading{flex-wrap:nowrap;gap:0}.is-fit .person-identity{display:grid;grid-template-columns:minmax(0,1fr) 96px;align-items:stretch;gap:0}.is-fit .person-name{display:flex;align-items:center;font-size:21px;font-weight:900;white-space:nowrap;padding:4px 7px}.is-fit .person-role{display:flex;align-items:center;margin-left:0!important;border-left:1px solid #aebbc1;padding:4px 7px;font-size:16px;font-weight:800;white-space:nowrap}
+.is-fit .schedule-grid tbody:not(.daily-count-rows) th:first-child{padding:0}.is-fit .person-heading{flex-wrap:nowrap;gap:0}.is-fit .person-identity{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:stretch;gap:0}.is-fit .person-name{display:flex;align-items:center;min-width:0;overflow:hidden;text-overflow:ellipsis;font-size:21px;font-weight:900;white-space:nowrap;padding:4px 7px}.is-fit .person-role{display:flex;align-items:center;min-width:0;overflow:hidden;text-overflow:ellipsis;margin-left:0!important;border-left:1px solid #aebbc1;padding:4px 7px;font-size:16px;font-weight:800;white-space:nowrap}
 .is-fit .annual-paid-badge{font-size:0;gap:2px;padding:2px 4px;border-radius:4px}.is-fit .annual-paid-badge:before{content:'有給';font-size:12px}.is-fit .annual-paid-badge:after{content:'日';font-size:12px}.is-fit .annual-paid-badge strong{font-size:14px}
 .is-fit .schedule-grid .cell{min-width:0;min-height:38px;width:100%;height:38px;padding:3px 1px;font-size:23px;font-weight:900;line-height:1.15;border-radius:4px}
 .is-fit .schedule-grid tbody:not(.daily-count-rows) td:nth-last-child(-n+3){font-size:17px;font-weight:800;white-space:normal;overflow-wrap:anywhere}
@@ -70,7 +70,7 @@ body.schedule-expanded #schedule-viewport{flex:1;min-height:0;height:auto;max-he
  .schedule-grid{width:100%!important;table-layout:fixed!important;font-size:7.5pt!important}
  .schedule-grid col.schedule-name-col{width:34mm!important}
  .schedule-grid col.schedule-day-col{width:auto!important}
- .schedule-grid col.schedule-meta-col{width:14mm!important}
+ .schedule-grid col.schedule-hours-col{width:16mm!important}.schedule-grid col.schedule-night-col,.schedule-grid col.schedule-holiday-col{width:10mm!important}
  .schedule-grid thead{display:table-header-group}
  .schedule-grid tr{break-inside:avoid;page-break-inside:avoid}
  .schedule-grid th,.schedule-grid td,.schedule-grid thead th,.schedule-grid .equivalent-row th,.schedule-grid .equivalent-row td{position:static!important;padding:1mm .45mm!important;border-color:#b8c0c4!important;white-space:nowrap!important}
@@ -100,7 +100,7 @@ body.schedule-expanded #schedule-viewport{flex:1;min-height:0;height:auto;max-he
  .schedule-grid .daily-count-rows th:first-child,.schedule-grid .equivalent-row th:first-child{z-index:11!important;background:#edf2f5!important}
  #schedule-viewport.is-zoom{height:calc(100dvh - 210px);min-height:420px;max-height:820px;overflow:auto;background:#fff}
  .is-zoom .schedule-grid{table-layout:fixed;width:max(100%,4900px);font-size:30px;line-height:1.45;font-weight:800;color:#000!important}
- .is-zoom .schedule-name-col{width:500px}.is-zoom .schedule-day-col{width:108px}.is-zoom .schedule-meta-col{width:210px}
+ .is-zoom .schedule-name-col{width:400px}.is-zoom .schedule-day-col{width:114px}.is-zoom .schedule-hours-col{width:180px}.is-zoom .schedule-night-col,.is-zoom .schedule-holiday-col{width:100px}
  .is-zoom .schedule-grid th,.is-zoom .schedule-grid td{padding:14px 8px;color:#000!important}.is-zoom .schedule-grid thead th{position:sticky;top:0;z-index:7;font-size:30px;padding:14px 7px;background:#f4f7f9}.is-zoom .schedule-grid thead th small{font-size:23px;margin-top:5px;color:#000!important}
  .is-zoom .schedule-grid th:first-child,.is-zoom .schedule-grid td:first-child{width:500px;min-width:500px;max-width:500px}.is-zoom .schedule-grid thead th:first-child{z-index:13!important}
  .is-zoom .person-name{font-size:32px;font-weight:900;white-space:nowrap;color:#000!important}.is-zoom .person-role{font-size:24px;color:#000!important;white-space:nowrap;font-weight:800}
