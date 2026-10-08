@@ -91,6 +91,8 @@ function bindPaidLeavePreview(){
  input.oninput=refresh;input.onchange=refresh;refresh();
 }
 function employmentLabel(p){return p.employmentType==='part'?'パート':'正社員';}
+function roleControl(p){const saved=[...new Set([...(state.customRoles||[]),...state.members.map(person=>person.role)])].filter(role=>role&&!E.roles.includes(role)),known=E.roles.includes(p.role)||saved.includes(p.role);return {selected:known?p.role:'__custom__',choices:[...E.roles.map(role=>[role,role]),...saved.map(role=>[role,role]),['__custom__','手書き']]};}
+function bindRoleControl(p){const select=$('#person-form select[name="role"]');if(!select)return;const control=roleControl(p);select.innerHTML=options(control.choices,control.selected);select.value=control.selected;select.setAttribute('aria-describedby','role-help');select.insertAdjacentHTML('afterend',`<span id="custom-role-field" ${control.selected==='__custom__'?'':'hidden'}><input id="custom-role" name="customRole" type="text" maxlength="50" placeholder="職種名を入力" value="${control.selected==='__custom__'?esc(p.role):''}"></span><small id="role-help">「手書き」で追加した職種は保存され、次回から選択肢に残ります。</small>`);const field=$('#custom-role-field'),input=$('#custom-role');if(!field||!input)return;const refresh=()=>{const custom=select.value==='__custom__';field.hidden=!custom;input.required=custom;if(custom)input.focus({preventScroll:true});};select.onchange=refresh;refresh();}
 function targetModeControl(p){const mode=E.targetMode(p);return `<div class="target-setting"><input aria-labelledby="target-label" name="target" type="number" required min="0" max="300" value="${p.target}"><div class="target-mode-toggle" role="radiogroup" aria-labelledby="target-label"><label><input type="radio" name="targetMode" value="min" ${mode==='min'?'checked':''}><span>以上</span></label><label><input type="radio" name="targetMode" value="max" ${mode==='max'?'checked':''}><span>以内</span></label></div></div>`;}
 function bindTargetMode(){const usesI=$('#person-form select[name="usesI"]'),targetInput=$('#person-form input[name="target"]'),modes=[...dialog.querySelectorAll('input[name="targetMode"]')];if(!usesI||!targetInput)return;const refresh=()=>{const automatic=usesI.value==='yes';targetInput.readOnly=automatic;for(const mode of modes)mode.disabled=automatic;if(automatic){const within=modes.find(mode=>mode.value==='max');if(within)within.checked=true;}};usesI.onchange=refresh;refresh();}
 function memberForm(id){editPerson(id,false);}
@@ -101,7 +103,7 @@ function editPerson(id,isUser){
  dialog.showModal();
  dialog.querySelector('.close').onclick=close;
  dialog.querySelector('.cancel').onclick=close;
- if(!isUser){bindMemberPrompt();bindPaidLeavePreview();bindTargetMode();}
+ if(!isUser){bindMemberPrompt();bindPaidLeavePreview();bindTargetMode();bindRoleControl(p);}
  $('#person-form').onsubmit=e=>{
   e.preventDefault();
   const f=new FormData(e.target);
@@ -109,9 +111,9 @@ function editPerson(id,isUser){
   Object.assign(p,{name:String(f.get('name')).trim(),start:f.get('start'),end:f.get('end'),weekdays:f.getAll('weekdays').map(Number)});
   if(!p.name){$('#form-error').textContent='氏名を入力してください。';return;}
   if(isUser)p.type=f.get('type');
- else Object.assign(p,{role:f.get('role'),employmentType:f.get('employmentType'),usesI:f.get('usesI')==='yes',night:f.get('night')==='yes',nightMax:+f.get('nightMax'),target:+f.get('target'),targetMode:f.get('targetMode')==='min'?'min':'max',memberPrompt:String(f.get('memberPrompt')||'')});
+ else{const selectedRole=String(f.get('role')||''),role=(selectedRole==='__custom__'?String(f.get('customRole')||''):selectedRole).trim();if(!role||role.length>50){$('#form-error').textContent='手書きの職種名を1〜50文字で入力してください。';return;}Object.assign(p,{role,employmentType:f.get('employmentType'),usesI:f.get('usesI')==='yes',night:f.get('night')==='yes',nightMax:+f.get('nightMax'),target:+f.get('target'),targetMode:f.get('targetMode')==='min'?'min':'max',memberPrompt:String(f.get('memberPrompt')||'')});}
   if(!isUser){const errors=E.memberConditionErrors(p);if(errors.length){$('#form-error').textContent=errors.join(' ');return;}}
-  change(()=>{if(id)list[list.findIndex(x=>x.id===id)]=p;else list.push(p);});
+  change(()=>{if(!isUser&&!E.roles.includes(p.role)&&!state.customRoles.includes(p.role))state.customRoles.push(p.role);if(id)list[list.findIndex(x=>x.id===id)]=p;else list.push(p);});
   close();toast('保存しました');
  };
 }

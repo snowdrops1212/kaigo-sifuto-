@@ -1,5 +1,6 @@
 (function(root){
  'use strict';
+ const roles=['介護職員','看護職員','管理者','計画作成担当者'];
  const shifts={B:{label:'日勤',time:'8:30–17:30',hours:8,cls:'b'},C:{label:'遅番',time:'10:30–19:30',hours:8,cls:'c'},D:{label:'夜勤入り',time:'16:30–翌10:30',hours:8,cls:'night'},d:{label:'夜勤明け',time:'夜勤の翌日',hours:8,cls:'night'},E:{label:'休日',time:'',hours:0,cls:'off'},F:{label:'有休',time:'',hours:8,cls:'paid'},G:{label:'短時間',time:'9:00–15:00',hours:6,cls:'short'},I:{label:'パート日勤',time:'9:00–17:00',hours:7,cls:'short'},'/B':{label:'午後日勤',time:'13:30–17:30',hours:4,cls:'short'},'/C':{label:'午後遅番',time:'15:30–19:30',hours:4,cls:'short'}};
  const copy=x=>JSON.parse(JSON.stringify(x));
  const days=m=>new Date(+m.slice(0,4),+m.slice(5),0).getDate();
@@ -36,7 +37,7 @@
   if(code==='I')return false;
   return !parsed.nightOnly||!works(code)||['D','d'].includes(code);
  }
- function fresh(){return {version:1,members:Array.from({length:12},(_,i)=>({id:'s'+(i+1),name:['管理者（サンプル）','看護職員（サンプル）',...Array.from({length:10},(_,j)=>`介護職員${String(j+1).padStart(2,'0')}（サンプル）`)][i],role:i===0?'管理者':i===1?'看護職員':'介護職員',employmentType:'full',usesI:false,night:i>=2&&i<=6,nightMax:7,weekdays:[0,1,2,3,4,5,6],start:'',end:'',target:0,targetMode:'max'})),users:[],months:{}};}
+ function fresh(){return {version:1,customRoles:[],members:Array.from({length:12},(_,i)=>({id:'s'+(i+1),name:['管理者（サンプル）','看護職員（サンプル）',...Array.from({length:10},(_,j)=>`介護職員${String(j+1).padStart(2,'0')}（サンプル）`)][i],role:i===0?'管理者':i===1?'看護職員':'介護職員',employmentType:'full',usesI:false,night:i>=2&&i<=6,nightMax:7,weekdays:[0,1,2,3,4,5,6],start:'',end:'',target:0,targetMode:'max'})),users:[],months:{}};}
  function month(state,m){if(!state.months[m])state.months[m]={requests:{},schedule:{},locks:{},previous:{},targets:{},daily:{},meetings:[],rules:{B:0,C:2,D:1,maxRun:5,off:9},generated:false};return state.months[m];}
  // B/C/D use the fixed facility policy even when legacy monthly or daily settings are loaded.
  const staffingNeed=(mo,d,code)=>code==='B'?0:code==='C'?2:code==='D'?1:(mo.daily[d]?.[code]??mo.rules[code]);
@@ -207,6 +208,8 @@
 
  function checkData(x){
   if(!x||x.version!==1||!Array.isArray(x.members)||x.members.length>100||!Array.isArray(x.users)||x.users.length>500||!x.months||typeof x.months!=='object')throw Error('このアプリで保存したデータを選んでください。');
+  if(x.customRoles===undefined)x.customRoles=[];
+  if(!Array.isArray(x.customRoles)||x.customRoles.length>100||new Set(x.customRoles).size!==x.customRoles.length||x.customRoles.some(role=>typeof role!=='string'||!role.trim()||role!==role.trim()||role.length>50||role==='__custom__'))throw Error('手書き職種の情報が正しくありません。');
   const checkPeriod=(person,label)=>{
    if(person.start===undefined)person.start='';if(person.end===undefined)person.end='';
    if(typeof person.start!=='string'||person.start&&!validCalendarDate(person.start))throw Error(`${label}の開始日が正しくありません。`);
@@ -215,7 +218,7 @@
   };
   const ids=new Set();
   for(const p of x.members){
-   if(typeof p.id!=='string'||!/^[\w-]+$/.test(p.id)||ids.has(p.id)||typeof p.name!=='string'||!Array.isArray(p.weekdays)||typeof p.night!=='boolean')throw Error('職員情報の形式が正しくありません。');
+   if(typeof p.id!=='string'||!/^[\w-]+$/.test(p.id)||ids.has(p.id)||typeof p.name!=='string'||typeof p.role!=='string'||!p.role.trim()||p.role!==p.role.trim()||p.role.length>50||p.role==='__custom__'||!Array.isArray(p.weekdays)||typeof p.night!=='boolean')throw Error('職員情報の形式が正しくありません。');
    if(!Number.isInteger(p.nightMax)||p.nightMax<0||p.nightMax>15)throw Error('職員の夜勤上限は0〜15回で指定してください。');
    if(!Number.isInteger(p.target)||p.target<0||p.target>300)throw Error('職員の勤務時間目安は0〜300時間で指定してください。');
    if(new Set(p.weekdays).size!==p.weekdays.length||p.weekdays.some(day=>!Number.isInteger(day)||day<0||day>6))throw Error('職員の勤務可能曜日が正しくありません。');
@@ -227,6 +230,7 @@
    if(p.role==='管理者'&&(p.employmentType!=='full'||p.usesI))throw Error('管理者は正社員・I勤務なしで登録してください。');
    if(p.memberPrompt!==undefined&&(typeof p.memberPrompt!=='string'||p.memberPrompt.length>2000))throw Error('職員の個別メモ・勤務条件は2,000文字以内の文章にしてください。');
    checkPeriod(p,'職員');
+   if(!roles.includes(p.role)&&!x.customRoles.includes(p.role))x.customRoles.push(p.role);
    ids.add(p.id);
   }
   const userIds=new Set();for(const u of x.users){if(!u||typeof u!=='object'||typeof u.id!=='string'||!/^[\w-]+$/.test(u.id)||userIds.has(u.id)||typeof u.name!=='string'||!['通い','泊まり','訪問'].includes(u.type)||!Array.isArray(u.weekdays)||new Set(u.weekdays).size!==u.weekdays.length||u.weekdays.some(day=>!Number.isInteger(day)||day<0||day>6))throw Error('利用者情報の形式が正しくありません。');checkPeriod(u,'利用者');userIds.add(u.id);}
@@ -268,5 +272,5 @@
    for(const field of ['previous','targets'])if(record[field])delete record[field][id];
   }return true;
  }
- root.ShiftEngine={validCalendarDate,addCalendarMonths,paidLeavePeriod,paidLeaveEligibility,parseMemberPrompt,memberConditionErrors,memberShiftAllowed,staffingNeed,memberRemovalSummary,removeMember,meetingDays,meetingConflicts,futureShiftConflict,requiredShiftConflict,requiredNightShift,annualPaidLeave,shifts,dailyCounts,equivalentCodes,equivalentTenths,equivalentStatus,dailyEquivalent,copy,days,iso,weekday,prevMonth,nextMonth,key,active,works,fresh,month,prior,target,targetMode,targetModeLabel,projectedHours,targetLimitIssue,validate,generate,checkData};if(typeof module!=='undefined')module.exports=root.ShiftEngine;
+ root.ShiftEngine={validCalendarDate,addCalendarMonths,paidLeavePeriod,paidLeaveEligibility,parseMemberPrompt,memberConditionErrors,memberShiftAllowed,staffingNeed,memberRemovalSummary,removeMember,meetingDays,meetingConflicts,futureShiftConflict,requiredShiftConflict,requiredNightShift,annualPaidLeave,roles,shifts,dailyCounts,equivalentCodes,equivalentTenths,equivalentStatus,dailyEquivalent,copy,days,iso,weekday,prevMonth,nextMonth,key,active,works,fresh,month,prior,target,targetMode,targetModeLabel,projectedHours,targetLimitIssue,validate,generate,checkData};if(typeof module!=='undefined')module.exports=root.ShiftEngine;
 })(typeof window!=='undefined'?window:globalThis);
