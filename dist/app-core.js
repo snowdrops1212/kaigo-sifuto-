@@ -25,9 +25,11 @@ function loadPersistedState(){
  return staff||E.fresh();
 }
 function persistState(){try{if(typeof localStorage!=='undefined'){const staffSerialized=JSON.stringify({version:1,customRoles:state.customRoles||[],members:state.members}),previousStaff=localStorage.getItem(staffStorageKey);if(previousStaff&&previousStaff!==staffSerialized)localStorage.setItem(staffBackupKey,previousStaff);localStorage.setItem(staffStorageKey,staffSerialized);const serialized=JSON.stringify(state),previous=localStorage.getItem(storageKey);if(previous&&previous!==serialized){const backup=localStorage.getItem(storageBackupKey);if(backup&&backup!==previous)localStorage.setItem(storageBackup2Key,backup);localStorage.setItem(storageBackupKey,previous);}localStorage.setItem(storageKey,serialized);}return true;}catch(err){console.warn('自動保存できませんでした。',err);return false;}}
+function applyMemberConditions(data){return data.members.reduce((total,p)=>total+E.clearMemberConditionConflicts(data,p),0);}
 let state=loadPersistedState(),current='2026-10',tab='schedule',undo=[],redo=[],dirty=false;
 let requestPerson='',requestKind='E',requestShift='B',requestDate='',meetingDate='';
 let scheduleFit=true,scheduleExpanded=false,scheduleResizeObserver;
+applyMemberConditions(state);
 persistState();
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const mo=()=>E.month(state,current),n=()=>E.days(current),k=E.key,chip=c=>E.shifts[c]?.cls||'blank';
@@ -43,7 +45,7 @@ function headerDays(){return range().map(d=>{const w=E.weekday(current,d);return
 function staffRow(p,paid=false){return `<th${paid?' class="paid-person"':''}><span class="person-heading"><span class="person-identity"><span class="person-name" title="${esc(p.name+'／'+p.role)}">${esc(p.name)}</span><span class="person-role">${esc(p.role)}</span></span>${paid?paidBadge(p):''}</span></th>`;}
 function undoBar(){return `<button id="undo" ${undo.length?'':'disabled'}>↶ 元に戻す</button><button id="redo" ${redo.length?'':'disabled'}>↷ やり直す</button>`;}
 function render(){mo();scheduleResizeObserver?.disconnect();if(tab!=='schedule'||!mo().generated)scheduleExpanded=false;document.body?.classList.toggle('schedule-expanded',scheduleExpanded);document.querySelectorAll('nav button').forEach(b=>{const active=b.dataset.tab===tab;b.classList.toggle('active',active);b.setAttribute('aria-current',active?'page':'false');b.setAttribute('aria-selected',String(active));b.tabIndex=active?0:-1;});if(tab==='members')renderMembers();else renderSchedule();if($('#undo'))$('#undo').onclick=()=>revert(false);if($('#redo'))$('#redo').onclick=()=>revert(true);}
-function syncPersistedState(event){if(event.key!==storageKey||!event.newValue||event.storageArea&&event.storageArea!==localStorage)return;try{const incoming=checkedStoredState(event.newValue);if(JSON.stringify(incoming)===JSON.stringify(state))return;state=incoming;undo=[];redo=[];dirty=false;requestPerson='';render();toast('別の画面で保存した職員情報を反映しました');}catch(err){console.warn('別の画面の保存データを反映できませんでした。',err);}}
+function syncPersistedState(event){if(event.key!==storageKey||!event.newValue||event.storageArea&&event.storageArea!==localStorage)return;try{const incoming=checkedStoredState(event.newValue);applyMemberConditions(incoming);if(JSON.stringify(incoming)===JSON.stringify(state))return;state=incoming;undo=[];redo=[];dirty=false;requestPerson='';persistState();render();toast('別の画面で保存した職員情報を反映しました');}catch(err){console.warn('別の画面の保存データを反映できませんでした。',err);}}
 window.addEventListener('storage',syncPersistedState);
 window.addEventListener('pagehide',persistState);
 window.addEventListener('beforeunload',persistState);
