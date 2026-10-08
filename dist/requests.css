@@ -34,17 +34,18 @@ th.paid-person{min-width:310px;max-width:360px}
 .request-summary-compact{border-top:1px solid var(--line);margin-top:16px;padding-top:12px;font-size:.875rem;line-height:1.6}.request-summary-heading{display:flex;align-items:baseline;gap:8px 16px;flex-wrap:wrap;margin-bottom:6px}.request-summary-heading h3{font-size:.875rem;margin:0}.request-summary-list{list-style:none;margin:0;padding:0}.request-summary-list li{display:grid;grid-template-columns:minmax(140px,1fr) minmax(0,2fr) minmax(0,2fr);gap:8px 16px;padding:8px 0;border-bottom:1px solid #edf1f3}.request-summary-list li:last-child{border-bottom:0}.request-summary-name{overflow-wrap:anywhere;font-weight:600}.request-summary-kind{display:flex;align-items:baseline;gap:8px;min-width:0}.request-summary-label{flex:none;color:var(--muted)}.request-summary-dates{display:flex;flex-wrap:wrap;gap:4px;min-width:0}.request-summary-date{display:inline-block;white-space:nowrap;border-radius:4px;padding:1px 6px;font-variant-numeric:tabular-nums}.request-summary-empty{margin:8px 0 0;color:var(--muted)}@media(max-width:700px){.request-summary-list li{grid-template-columns:minmax(0,1fr);gap:5px}.request-summary-kind{flex-wrap:wrap}}
 .schedule-view-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:12px 0}.schedule-view-toolbar button{min-height:44px;font-size:14px}.schedule-view-toolbar button[aria-pressed=true]:not(.primary){background:#e3eef2;border-color:#184959}
 #schedule-viewport{position:relative;max-height:none}#schedule-canvas{transform-origin:top left}
-#schedule-viewport.is-fit{height:calc(100dvh - 210px);min-height:300px;max-height:820px;overflow-x:auto;overflow-y:hidden;background:#fff}
-.is-fit .schedule-grid{table-layout:fixed;width:100%;font-size:14px;line-height:1.3}
-.is-fit .schedule-name-col{width:300px}.is-fit .schedule-day-col{width:48px}.is-fit .schedule-meta-col{width:102px}
+#schedule-viewport.is-fit{height:calc(100dvh - 210px);min-height:300px;max-height:820px;overflow-x:scroll;overflow-y:hidden;background:#fff}
+.is-fit .schedule-grid{table-layout:fixed;width:100%;font-size:20px;line-height:1.25;font-weight:800;color:#000!important}
+.is-fit .schedule-grid *{color:#000!important}
+.is-fit .schedule-name-col{width:390px}.is-fit .schedule-day-col{width:62px}.is-fit .schedule-meta-col{width:140px}
 .is-fit .schedule-grid th:first-child,.is-fit .schedule-grid td:first-child{min-width:0;max-width:none;position:sticky;left:0}
-.is-fit .schedule-grid th,.is-fit .schedule-grid td{padding:5px 3px}.is-fit .schedule-grid thead th{position:static;font-size:14px;padding:8px 3px}.is-fit .schedule-grid thead th small{font-size:12px;margin-top:4px}
-.is-fit .person-heading{flex-wrap:nowrap;gap:5px}.is-fit .person-identity{gap:10px}.is-fit .person-name{font-size:14px;white-space:nowrap}.is-fit .person-role{display:inline-block;font-size:12px;white-space:nowrap}
+.is-fit .schedule-grid th,.is-fit .schedule-grid td{padding:4px 3px}.is-fit .schedule-grid thead th{position:static;font-size:20px;padding:7px 3px}.is-fit .schedule-grid thead th small{font-size:16px;margin-top:3px}
+.is-fit .person-heading{flex-wrap:nowrap;gap:5px}.is-fit .person-identity{gap:10px}.is-fit .person-name{font-size:21px;font-weight:900;white-space:nowrap}.is-fit .person-role{display:inline-block;font-size:16px;font-weight:800;white-space:nowrap}
 .is-fit .annual-paid-badge{font-size:0;gap:2px;padding:2px 4px;border-radius:4px}.is-fit .annual-paid-badge:before{content:'有給';font-size:12px}.is-fit .annual-paid-badge:after{content:'日';font-size:12px}.is-fit .annual-paid-badge strong{font-size:14px}
-.is-fit .schedule-grid .cell{min-width:0;min-height:30px;width:100%;height:30px;padding:4px 1px;font-size:14px;line-height:1.25;border-radius:4px}
-.is-fit .schedule-grid tbody:not(.daily-count-rows) td:nth-last-child(-n+3){font-size:12px;white-space:normal;overflow-wrap:anywhere}
-.is-fit .daily-count-rows td{min-width:0;padding:5px 3px;font-size:14px}.is-fit .daily-count-rows .chip{padding:3px 7px;font-size:14px}.is-fit .daily-count-rows .counts-heading th,.is-fit .daily-count-rows .counts-heading td{padding:8px 3px;font-size:14px}
-.is-fit .equivalent-row th,.is-fit .equivalent-row td{position:static;bottom:auto;font-size:14px;padding:8px 3px}.is-fit .equivalent-row small{font-size:12px}
+.is-fit .schedule-grid .cell{min-width:0;min-height:38px;width:100%;height:38px;padding:3px 1px;font-size:23px;font-weight:900;line-height:1.15;border-radius:4px}
+.is-fit .schedule-grid tbody:not(.daily-count-rows) td:nth-last-child(-n+3){font-size:17px;font-weight:800;white-space:normal;overflow-wrap:anywhere}
+.is-fit .daily-count-rows td{min-width:0;padding:4px 3px;font-size:19px;font-weight:800}.is-fit .daily-count-rows .chip{padding:3px 7px;font-size:19px;font-weight:900}.is-fit .daily-count-rows .counts-heading th,.is-fit .daily-count-rows .counts-heading td{padding:6px 3px;font-size:19px}
+.is-fit .equivalent-row th,.is-fit .equivalent-row td{position:static;bottom:auto;font-size:19px;padding:6px 3px}.is-fit .equivalent-row small{font-size:15px}
 #schedule-viewport.is-zoom{max-height:70vh;overflow:auto}
 body.schedule-expanded{overflow:hidden}body.schedule-expanded>header,body.schedule-expanded main>.top,body.schedule-expanded main>nav,body.schedule-expanded main>footer,body.schedule-expanded #content>:not(#schedule-panel){display:none}
 body.schedule-expanded #schedule-panel{position:fixed;inset:10px;z-index:10;background:#fff;display:flex;flex-direction:column;padding:14px;margin:0;overflow:hidden}
