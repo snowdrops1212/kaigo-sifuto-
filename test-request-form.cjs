@@ -269,6 +269,7 @@ assert(editor.innerHTML.includes('name="employmentType"'));assert(editor.innerHT
 assert(el('#person-form select[name="role"]').innerHTML.includes('value="__custom__"'));assert(el('#person-form select[name="role"]').innerHTML.includes('>手書き</option>'));assert(el('#person-form select[name="role"]').innerHTML.includes('次回から選択肢に残ります'));
 el('#person-form select[name="role"]').value='__custom__';el('#person-form select[name="role"]').onchange();assert.equal(el('#custom-role-field').hidden,false);assert.equal(el('#custom-role').required,true);el('#person-form select[name="role"]').value='介護職員';el('#person-form select[name="role"]').onchange();assert.equal(el('#custom-role-field').hidden,true);
 assert(editor.innerHTML.includes('name="targetMode" value="min"'));assert(editor.innerHTML.includes('name="targetMode" value="max"'));assert(editor.innerHTML.includes('<span>以上</span>'));assert(editor.innerHTML.includes('<span>以内</span>'));
+assert(editor.innerHTML.includes('I勤務者は月9日休みを維持しながら入力でき'));assert(!fs.readFileSync('./dist/app-members.js','utf8').includes('targetInput.readOnly'));
 assert(editor.innerHTML.includes('翌日のdと翌々日のEは、曜日設定より優先'));
 assert(editor.innerHTML.includes('id="paid-leave-preview"'));assert(el('#paid-leave-preview').innerHTML.includes('入職日を入力'));
 el('#person-form input[name="start"]').value='2026-01-15';el('#person-form input[name="start"]').oninput();

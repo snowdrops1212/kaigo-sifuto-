@@ -88,9 +88,9 @@
   return '';
  }
  function prior(state,m,p){const previous=prevMonth(m),prev=state.months[previous],last=prev?.schedule?.[key(p.id,days(previous))]||'';return prev&&(prev.generated||['D','d'].includes(last))?last:month(state,m).previous[p.id]||'';}
- const target=(p,mo,n)=>p.usesI?Math.max(0,n-9)*7:(Object.hasOwn(mo.targets,p.id)?mo.targets[p.id]:(p.target||Math.max(0,n-mo.rules.off)*8));
- const targetMode=p=>p.usesI?'max':p.targetMode==='min'?'min':'max';
- const targetModeLabel=p=>p.usesI?'自動':targetMode(p)==='min'?'以上':'以内';
+ const target=(p,mo,n)=>Object.hasOwn(mo.targets,p.id)?mo.targets[p.id]:(p.target||(p.usesI?Math.max(0,n-9)*7:Math.max(0,n-mo.rules.off)*8));
+ const targetMode=p=>p.targetMode==='min'?'min':'max';
+ const targetModeLabel=p=>targetMode(p)==='min'?'以上':'以内';
  function projectedHours(state,m,p,changes=[]){const record=state.months[m]||{schedule:{},targets:{},rules:{off:9}},overrides=new Map(changes);let total=0;for(let d=1;d<=days(m);d++){const code=overrides.has(d)?overrides.get(d):record.schedule[key(p.id,d)]||'';total+=shifts[code]?.hours||0;}return total;}
  function targetLimitIssue(state,m,p,changes=[]){if(targetMode(p)!=='max')return '';const record=state.months[m]||{schedule:{},targets:{},rules:{off:9}},goal=target(p,record,days(m)),hours=projectedHours(state,m,p,changes);return hours>goal?`${p.name}：${m}は勤務時間目安${goal}時間以内のため、変更後の${hours}時間は設定できません。`:'';}
  const equivalentCodes=['B','C','D','d','G','I'];
@@ -156,7 +156,7 @@
    for(const d of order)for(const c of ['C']){let need=staffingNeed(mo,d,c)-state.members.filter(p=>sc[key(p.id,d)]===c).length;
     while(need-->0){const pool=state.members.filter(p=>!reserved.has(key(p.id,d))&&!protectedKeys.has(key(p.id,d))&&sc[key(p.id,d)]==='E'&&can(p,d,c)&&runOK(p,d)&&(targetMode(p)==='min'||hrs(p)+8<=target(p,mo,n))).map(p=>({p,score:hrs(p)/Math.max(1,target(p,mo,n))+Math.random()*.2-(mo.requests[key(p.id,d)]==='W'?10:0)})).sort((a,b)=>a.score-b.score);if(!pool.length)break;sc[key(pool[0].p.id,d)]=c;}
    }
-   for(const p of state.members){const personal=personalById.get(p.id);if(personal.nightOnly)continue;const eligible=Array.from({length:n},(_,i)=>i+1).map(d=>({d,score:(mo.requests[key(p.id,d)]==='W'?0:1)+Math.random()})).sort((a,b)=>a.score-b.score).map(x=>x.d);for(const d of eligible){const k=key(p.id,d),remaining=target(p,mo,n)-hrs(p),minimum=targetMode(p)==='min',c=p.usesI?(remaining>=7?'I':null):minimum?(remaining<=0?null:remaining>=8?'B':personal.gAllowed&&remaining<=6?'G':'B'):(remaining>=8?'B':personal.gAllowed&&remaining>=6?'G':null);if(!c)break;if(sc[k]==='E'&&!protectedKeys.has(k)&&!reserved.has(k)&&can(p,d,c)&&runOK(p,d))sc[k]=c;}}
+   for(const p of state.members){const personal=personalById.get(p.id);if(personal.nightOnly)continue;const eligible=Array.from({length:n},(_,i)=>i+1).map(d=>({d,score:(mo.requests[key(p.id,d)]==='W'?0:1)+Math.random()})).sort((a,b)=>a.score-b.score).map(x=>x.d);for(const d of eligible){const k=key(p.id,d),remaining=target(p,mo,n)-hrs(p),minimum=targetMode(p)==='min',c=p.usesI?(count(p,'I')>=Math.max(0,n-9)?null:remaining>=7?'I':null):minimum?(remaining<=0?null:remaining>=8?'B':personal.gAllowed&&remaining<=6?'G':'B'):(remaining>=8?'B':personal.gAllowed&&remaining>=6?'G':null);if(!c)break;if(sc[k]==='E'&&!protectedKeys.has(k)&&!reserved.has(k)&&can(p,d,c)&&runOK(p,d))sc[k]=c;}}
    const temp={...state,months:{...state.months,[m]:{...mo,schedule:sc}}};const issues=validate(temp,m);const score=issues.reduce((v,x)=>v+(x.type==='coverage'?100:x.type==='request'?1000:x.type==='workRequest'?80:50),0)+state.members.reduce((v,p)=>v+Math.abs(hrs(p)-target(p,mo,n))*.05,0);if(score<bestScore){bestScore=score;best=sc;}
   }mo.schedule=best;mo.generated=true;return validate(state,m);
  }
