@@ -29,7 +29,7 @@
    let kind='',value=false;
    if(['G勤務:可能','G勤務が可能','G勤務可能','Gを使えます','この人はGを使えます'].includes(line)){kind='gAllowed';value=true;}
    else if(line==='G勤務:不可'){kind='gAllowed';}
-   else if(['勤務区分:夜勤専門','夜勤専門','夜勤専門です'].includes(line)){kind='nightOnly';value=true;}
+   else if(['勤務区分:夜勤専門','夜勤専門','夜勤専門です','夜勤のみ','夜勤のみ勤務','夜勤だけ','夜勤専従','夜勤専従です'].includes(line)){kind='nightOnly';value=true;}
    else if(line==='勤務区分:通常'){kind='nightOnly';}
    else{const only=onlyShiftCodes(line);if(!only){result.notes.push(raw);continue;}kind='onlyShifts';value=only.codes;if(only.error)result.errors.push(only.error);}
    if(seen.has(kind))result.errors.push((kind==='gAllowed'?'G勤務':kind==='onlyShifts'?'勤務可能な記号':'勤務区分')+'の指定が重複しています。1行にまとめてください。');
@@ -43,6 +43,7 @@
  function memberConditions(p){
   const parsed=parseMemberPrompt(p.memberPrompt),name=String(p.name||'').normalize('NFKC').trim();
   const named=name.match(/(?:^|[\s(（・／])([BG])のみ(?:勤務(?:可能)?)?[)）]?$/);
+  if(/(?:^|[\s(（・／])(?:夜勤のみ|夜勤専門|夜勤専従)[)）]?$/.test(name))parsed.nightOnly=true;
   const explicit=parseAllowedShift(p.allowedShift||'');if(explicit.error)parsed.errors.push(explicit.error);
   for(const limit of [explicit.codes,...(named?[[named[1]]]:[])]){
    if(!limit.length)continue;

@@ -1,6 +1,6 @@
 const assert=require('node:assert/strict'),E=require('./dist/engine.js');
 for(const text of ['G勤務：可能','Ｇ勤務：可能。','Gを使えます','この人はGを使えます'])assert.equal(E.parseMemberPrompt(text).gAllowed,true);
-for(const text of ['勤務区分：夜勤専門','夜勤専門','夜勤専門です。'])assert.equal(E.parseMemberPrompt(text).nightOnly,true);
+for(const text of ['勤務区分：夜勤専門','夜勤専門','夜勤専門です。','夜勤のみ','夜勤のみ勤務','夜勤専従'])assert.equal(E.parseMemberPrompt(text).nightOnly,true);
 for(const [text,codes] of [['Gのみ勤務可能',['G']],['Ｂ・Ｃのみ勤務可能。',['B','C']],['勤務可能：Dのみ',['D','d']]])assert.deepEqual(E.parseMemberPrompt(text).onlyShifts,codes);
 for(const text of ['Bのみ','Bのみ勤務','Bのみ勤務可能','勤務はBのみ','勤務：Bのみ','勤務可能：Bのみ','勤務区分：Bのみ']){const parsed=E.parseMemberPrompt(text);assert.deepEqual(parsed.onlyShifts,['B'],text);assert.equal(parsed.errors.length,0,text);}
 for(const [input,value,codes] of [['Cのみ','C',['C']],['B・Cのみ','B・C',['B','C']],['Ｊのみ','J',['J']],['/C\'のみ',"/C'",["/C'"]],['Dのみ','D・d',['D','d']]]){const parsed=E.parseAllowedShift(input);assert.equal(parsed.error,'',input);assert.equal(parsed.value,value,input);assert.deepEqual(parsed.codes,codes,input);}
@@ -11,6 +11,12 @@ for(const [name,allowed,forbidden] of [['パート Gのみ','G',['B','C','D']],[
  const named={...onlyGPerson,name,memberPrompt:''};assert(E.memberShiftAllowed(named,allowed),name);for(const code of forbidden)assert(!E.memberShiftAllowed(named,code),name+' '+code);
  const explicit={...onlyGPerson,name:'任意の氏名',memberPrompt:'',allowedShift:allowed};assert(E.memberShiftAllowed(explicit,allowed));for(const code of forbidden)assert(!E.memberShiftAllowed(explicit,code));
 }
+const nightPart={...onlyGPerson,name:'パート　夜勤のみ',memberPrompt:'',employmentType:'part',night:true};
+assert(E.memberShiftAllowed(nightPart,'D'));assert(E.memberShiftAllowed(nightPart,'d'));
+assert(!E.memberShiftAllowed(nightPart,'B'));assert(!E.memberShiftAllowed(nightPart,'C'));
+assert(E.workRequestShiftAllowed(nightPart,'D'));
+assert(E.memberConditionErrors({...nightPart,night:false}).some(message=>message.includes('夜勤')));
+assert(E.memberShiftAllowed({...nightPart,name:'別のパート',memberPrompt:'夜勤のみ'},'D'));
 assert(!E.memberShiftAllowed({...onlyGPerson,memberPrompt:'腰痛に注意'},'B'),'未対応メモを無視して勤務を割り当てない');
 assert(E.memberConditionErrors({...onlyGPerson,name:'パート Bのみ',allowedShift:'G',memberPrompt:''}).length,'矛盾した勤務限定を拒否する');
 for(const text of ['夜勤専門ではない','この人はGを使えません','夜勤専門かどうかは未確認','会議日はBにして']){

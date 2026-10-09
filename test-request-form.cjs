@@ -417,3 +417,8 @@ assert.equal(run("state.months['2026-12'].schedule['s3:1']"),'E');
 assert.equal(run("state.months['2026-12'].schedule['s3:2']"),'');
 assert.equal(run("state.months['2026-11'].locks['s3:30']"),undefined);
 console.log('PASS: a late day-off request breaks a conflicting night sequence across the month boundary');
+
+run("state=E.fresh();current='2026-10';state.members[2].name='パート　夜勤のみ';state.members[2].employmentType='part';state.members[2].memberPrompt='夜勤のみ';state.members[2].night=true;mo().generated=true;render();editCell('s3',8)");
+assert(editor.innerHTML.includes('data-choice="D"'),'夜勤のみのパートにはDを表示する');
+assert(!editor.innerHTML.includes('data-choice="B"'),'夜勤のみの職員には日勤を表示しない');
+console.log('PASS: part-time night-only staff can select D when night work is enabled');
