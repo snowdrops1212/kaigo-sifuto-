@@ -19,9 +19,11 @@ gm.requests['s1:5']='E';gm.requests['s2:6']='F';gm.schedule['s3:7']='C';gm.locks
 const retained=JSON.stringify({rules:gm.rules,daily:gm.daily,requests:gm.requests,locks:gm.locks});
 E.generate(g,month);
 assert(E.dailyCounts(g,month).every(row=>row.counts.C===2));
+assert(E.dailyCounts(g,month).every(row=>row.counts.D===1),'夜勤Dを毎日ちょうど1人にする');
 assert.equal(gm.schedule['s1:5'],'E');assert.equal(gm.schedule['s2:6'],'F');assert.equal(gm.schedule['s3:7'],'C');
 assert.equal(JSON.stringify({rules:gm.rules,daily:gm.daily,requests:gm.requests,locks:gm.locks}),retained);
 assert(!E.validate(g,month).some(x=>x.type==='coverage'));
+const tight=E.fresh();tight.members[2].night=false;tight.members[3].nightMax=11;E.generate(tight,month);assert(E.dailyCounts(tight,month).every(row=>row.counts.D===1),'夜勤可能者が少ない月でも上限の余裕を使って毎日Dを確保する');
 const hoursState=E.fresh(),hoursMonth=E.month(hoursState,month),hoursPerson=hoursState.members[2];hoursPerson.target=16;hoursPerson.targetMode='min';hoursMonth.schedule[E.key(hoursPerson.id,1)]='B';
 assert(E.validate(hoursState,month).some(x=>x.type==='hours'&&x.id===hoursPerson.id&&x.text.includes('16時間以上')));
 hoursMonth.schedule[E.key(hoursPerson.id,2)]='B';assert(!E.validate(hoursState,month).some(x=>x.type==='hours'&&x.id===hoursPerson.id));
@@ -38,7 +40,8 @@ const before=JSON.stringify(g);assert.throws(()=>E.generate(g,month),/Cの固定
 delete gm.locks['s3:8'];delete gm.schedule['s3:8'];for(const id of ['s3','s4']){gm.schedule[E.key(id,9)]='D';gm.locks[E.key(id,9)]=true;}
 assert.throws(()=>E.generate(g,month),/Dの固定勤務が2人/);
 const short=E.fresh();short.members=short.members.slice(0,1);const sm=E.month(short,month);sm.rules.D=0;sm.rules.maxRun=31;sm.rules.off=0;
-assert(E.generate(short,month).some(x=>x.type==='coverage'&&x.text.includes('Cが1人不足')));
+const shortBefore=JSON.stringify(short);assert.throws(()=>E.generate(short,month),/シフトを完成できません/);assert.equal(JSON.stringify(short),shortBefore,'人数不足を完成扱いにしない');
+const existing=E.fresh(),existingMonth=E.month(existing,month);E.generate(existing,month);const originalSchedule=JSON.stringify(existingMonth.schedule);for(const person of existing.members)existingMonth.requests[E.key(person.id,5)]='E';assert.throws(()=>E.generate(existing,month),/Dが1人不足/);assert.equal(JSON.stringify(existingMonth.schedule),originalSchedule,'再作成に失敗しても保存済みのシフトを残す');assert.equal(existingMonth.generated,true);
 assert.deepEqual(E.checkData(E.copy(g)),g);
 for(const value of [0,32,1.5]){const invalid=E.copy(g);invalid.months[month].rules.maxRun=value;assert.throws(()=>E.checkData(invalid),/連続勤務/);}
 for(const value of [-1,32,1.5]){const invalid=E.copy(g);invalid.months[month].rules.off=value;assert.throws(()=>E.checkData(invalid),/休日/);}

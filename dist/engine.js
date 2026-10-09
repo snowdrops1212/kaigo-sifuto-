@@ -170,7 +170,7 @@
   for(const p of state.members){const before=prior(state,m,p),required=before==='D'?[[1,'d'],[2,'E']]:before==='d'?[[1,'E']]:[];for(const[day,code]of required){const conflict=requiredShiftConflict(state,m,p,day,code);if(conflict)throw Error(conflict+'。前月からのD→d→Eを優先して勤務を調整してください。');}}
   for(const p of state.members)for(let d=1;d<=n;d++)if(mo.locks[key(p.id,d)]&&mo.schedule[key(p.id,d)]==='D')for(const [offset,required]of [[1,'d'],[2,'E']]){const conflict=requiredShiftConflict(state,m,p,d+offset,required);if(conflict)throw Error(conflict+'。勤務を調整してから再作成してください。');}
   const priorityPartTimers=state.members.filter(p=>p.employmentType==='part');
-  let best=null,bestScore=Infinity;
+  let best=null,bestRank=null,bestIssues=[];
   for(let attempt=0;attempt<60;attempt++){const sc={},protectedKeys=new Set(),reserved=new Set();
    for(const p of state.members)for(let d=1;d<=n;d++){const k=key(p.id,d);sc[k]=active(p,m,d)?'E':'';if(mo.requests[k]&&mo.requests[k]!=='W'){sc[k]=mo.requests[k];protectedKeys.add(k);}if(mo.locks[k]){sc[k]=mo.schedule[k]||'';protectedKeys.add(k);}}
    for(const d of meetingDays(state,m))for(const p of state.members)if(p.role==='管理者'&&active(p,m,d)){const k=key(p.id,d);sc[k]='B';protectedKeys.add(k);}
@@ -199,7 +199,7 @@
    }
    for(const p of state.members)if(targetMode(p)==='max'&&hrs(p)>target(p,mo,n))throw Error(`${p.name}：固定勤務・希望・会議・前月夜勤の合計が、勤務時間目安${target(p,mo,n)}時間以内を超えています。条件を調整してください。`);
    for(let d=1;d<=n;d++){let need=staffingNeed(mo,d,'D')-state.members.filter(p=>sc[key(p.id,d)]==='D').length;
-    const addedNightHours=(d<=n?8:0)+(d+1<=n?8:0);while(need-->0){const pool=state.members.filter(p=>p.night&&count(p,'D')<p.nightMax&&[0,1,2].every((v)=>can(p,d+v,['D','d','E'][v])&&workPreferenceAllows(p,d+v,['D','d','E'][v]))&&sc[key(p.id,d)]==='E'&&(targetMode(p)==='min'||hrs(p)+addedNightHours<=target(p,mo,n))&&(d===1?prior(state,m,p):sc[key(p.id,d-1)])!=='D'&&(d===1?prior(state,m,p):sc[key(p.id,d-1)])!=='d'&&runOK(p,d,2)).map(p=>({p,score:count(p,'D')*10+Math.random()*9-(mo.requests[key(p.id,d)]==='W'?100:0)-(mo.requests[key(p.id,d+1)]==='W'?50:0)+(mo.requests[key(p.id,d+2)]==='W'?100:0)})).sort((a,b)=>a.score-b.score);if(!pool.length)break;const p=pool[0].p;assign(p,d,'D');assign(p,d+1,'d');assign(p,d+2,'E');}
+    const addedNightHours=8+(d+1<=n?8:0);while(need-->0){const pool=state.members.filter(p=>p.night&&count(p,'D')<p.nightMax&&[0,1,2].every(v=>can(p,d+v,['D','d','E'][v])&&workPreferenceAllows(p,d+v,['D','d','E'][v]))&&sc[key(p.id,d)]==='E'&&(targetMode(p)==='min'||hrs(p)+addedNightHours<=target(p,mo,n))&&!['D','d'].includes(d===1?prior(state,m,p):sc[key(p.id,d-1)])&&runOK(p,d,2)).map(p=>({p,score:count(p,'D')/Math.max(1,p.nightMax)*100+Math.random()*5-(mo.requests[key(p.id,d)]==='W'?100:0)-(mo.requests[key(p.id,d+1)]==='W'?50:0)+(mo.requests[key(p.id,d+2)]==='W'?100:0)})).sort((a,b)=>a.score-b.score);if(!pool.length)break;const p=pool[0].p;assign(p,d,'D');assign(p,d+1,'d');assign(p,d+2,'E');}
    }
    // Scarce days first. Requests, manually fixed shifts, and night/rest blocks stay protected.
    const order=Array.from({length:n},(_,i)=>i+1).sort((a,b)=>state.members.filter(p=>can(p,a,'C')).length-state.members.filter(p=>can(p,b,'C')).length);
@@ -207,8 +207,15 @@
     while(need-->0){const pool=state.members.filter(p=>!reserved.has(key(p.id,d))&&!protectedKeys.has(key(p.id,d))&&sc[key(p.id,d)]==='E'&&can(p,d,c)&&workPreferenceAllows(p,d,c)&&runOK(p,d)&&(targetMode(p)==='min'||hrs(p)+8<=target(p,mo,n))).map(p=>({p,score:hrs(p)/Math.max(1,target(p,mo,n))+Math.random()*.2-(mo.requests[key(p.id,d)]==='W'?10:0)})).sort((a,b)=>a.score-b.score);if(!pool.length)break;sc[key(pool[0].p.id,d)]=c;}
    }
    for(const p of state.members){const personal=personalById.get(p.id);if(personal.nightOnly)continue;const eligible=Array.from({length:n},(_,i)=>i+1).map(d=>({d,score:(mo.requests[key(p.id,d)]==='W'?0:1)+Math.random()})).sort((a,b)=>a.score-b.score).map(x=>x.d);for(const d of eligible){const k=key(p.id,d),remaining=target(p,mo,n)-hrs(p),minimum=targetMode(p)==='min',desired=mo.requests[k]==='W'?mo.workRequests[k]||'':'',desiredHours=shifts[desired]?.hours||0,c=desired?(['C','D'].includes(desired)?null:minimum||desiredHours<=remaining?desired:null):p.usesI?(count(p,'I')>=Math.max(0,n-9)?null:remaining>=7?'I':null):personal.onlyShifts.length?onlyShiftFill(personal,remaining,minimum):minimum?(remaining<=0?null:remaining>=8?'B':personal.gAllowed&&remaining<=6?'G':'B'):(remaining>=8?'B':personal.gAllowed&&remaining>=6?'G':null);if(!c){if(['C','D'].includes(desired))continue;break;}if(p.usesI&&c==='I'&&count(p,'I')>=Math.max(0,n-9))continue;if(sc[k]==='E'&&!protectedKeys.has(k)&&!reserved.has(k)&&can(p,d,c)&&runOK(p,d))sc[k]=c;}}
-   const temp={...state,months:{...state.months,[m]:{...mo,schedule:sc}}};const issues=validate(temp,m);const score=issues.reduce((v,x)=>v+(x.type==='coverage'?100:x.type==='request'?1000:x.type==='workRequest'?80:50),0)+state.members.reduce((v,p)=>v+Math.abs(hrs(p)-target(p,mo,n))*.05,0);if(score<bestScore){bestScore=score;best=sc;}
-  }mo.schedule=best;mo.generated=true;return validate(state,m);
+   const temp={...state,months:{...state.months,[m]:{...mo,schedule:sc}}},issues=validate(temp,m);
+   const nightGaps=issues.filter(x=>x.type==='coverage'&&/ Dが/.test(x.text)).length,lateGaps=issues.filter(x=>x.type==='coverage'&&/ Cが/.test(x.text)).length;
+   const otherScore=issues.reduce((v,x)=>v+(x.type==='coverage'?0:x.type==='request'?1000:x.type==='workRequest'?80:50),0)+state.members.reduce((v,p)=>v+Math.abs(hrs(p)-target(p,mo,n))*.05,0);
+   const rank=[nightGaps,lateGaps,otherScore],firstDifference=bestRank&&rank.findIndex((value,index)=>value!==bestRank[index]);
+   if(!bestRank||firstDifference>=0&&rank[firstDifference]<bestRank[firstDifference]){bestRank=rank;best=sc;bestIssues=issues;}
+  }
+  const missing=bestIssues.filter(x=>x.type==='coverage').sort((a,b)=>(/ Dが/.test(b.text)?1:0)-(/ Dが/.test(a.text)?1:0)||a.d-b.d);
+  if(missing.length){const first=missing[0],remaining=missing.length-1;throw Error(`シフトを完成できません。${first.text}${remaining?`（ほか${remaining}件）`:''}。希望休・出勤希望・勤務限定・夜勤上限・勤務時間目安を確認してください。現在のシフトは変更していません。`);}
+  mo.schedule=best;mo.generated=true;return validate(state,m);
  }
 
  function validCalendarDate(value){return typeof value==='string'&&/^\d{4}-(0[1-9]|1[0-2])-\d{2}$/.test(value)&&Number(value.slice(0,4))>=100&&Number(value.slice(8))>=1&&Number(value.slice(8))<=days(value.slice(0,7));}

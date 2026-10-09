@@ -29,6 +29,7 @@ assert.equal(E.parseMemberPrompt().notes.length,0);assert(E.parseMemberPrompt(nu
 assert(E.parseMemberPrompt('あ'.repeat(2001)).errors.length);
 const month='2026-10',s=E.fresh(),m=E.month(s,month),p=s.members[2];
 for(const member of s.members)member.night=false;
+for(const member of s.members.slice(3,7)){member.night=true;member.nightMax=10;}
 p.start='2025-01-01';p.night=true;p.nightMax=15;p.memberPrompt='夜勤専門です';
 m.requests['s3:5']='F';m.requests['s3:10']='E';
 E.generate(s,month);
@@ -43,13 +44,14 @@ for(const hours of [6,14]){
  assert.equal(values.filter(c=>c==='G').length,1);assert.equal(values.reduce((n,c)=>n+(E.shifts[c]?.hours||0),0),hours);assert.equal(gm.schedule['s1:1'],'E');
  assert.equal(E.dailyEquivalent(g,month).find(r=>gm.schedule[E.key('s1',r.day)]==='G').tenths%10,7);
 }
-const onlyG=E.fresh(),onlyGMonth=E.month(onlyG,month),onlyGStaff=onlyG.members[2];onlyGStaff.memberPrompt='Gのみ';onlyGStaff.target=18;onlyGStaff.targetMode='max';E.generate(onlyG,month);
+const withNightReserve=()=>{const roster=E.fresh();for(const member of roster.members.slice(3,7))member.nightMax=10;return roster;};
+const onlyG=withNightReserve(),onlyGMonth=E.month(onlyG,month),onlyGStaff=onlyG.members[2];onlyGStaff.memberPrompt='Gのみ';onlyGStaff.target=18;onlyGStaff.targetMode='max';E.generate(onlyG,month);
 const onlyGCodes=Object.entries(onlyGMonth.schedule).filter(([key])=>key.startsWith(onlyGStaff.id+':')).map(([,code])=>code);assert.equal(onlyGCodes.filter(code=>code==='G').length,3);assert(onlyGCodes.every(code=>['G','E','F',''].includes(code)));assert(!E.validate(onlyG,month).some(issue=>issue.type==='personal'&&issue.id===onlyGStaff.id));
 onlyGMonth.schedule[E.key(onlyGStaff.id,1)]='B';assert(E.validate(onlyG,month).some(issue=>issue.type==='personal'&&issue.id===onlyGStaff.id&&issue.d===1));
-const onlyB=E.fresh(),onlyBMonth=E.month(onlyB,month),onlyBStaff=onlyB.members[2];onlyBStaff.memberPrompt='Bのみ';onlyBStaff.target=24;onlyBStaff.targetMode='max';E.generate(onlyB,month);const onlyBCodes=Object.entries(onlyBMonth.schedule).filter(([key])=>key.startsWith(onlyBStaff.id+':')).map(([,code])=>code);assert(onlyBCodes.every(code=>['B','E','F',''].includes(code)));assert(!onlyBCodes.includes('C'));
+const onlyB=withNightReserve(),onlyBMonth=E.month(onlyB,month),onlyBStaff=onlyB.members[2];onlyBStaff.memberPrompt='Bのみ';onlyBStaff.target=24;onlyBStaff.targetMode='max';E.generate(onlyB,month);const onlyBCodes=Object.entries(onlyBMonth.schedule).filter(([key])=>key.startsWith(onlyBStaff.id+':')).map(([,code])=>code);assert(onlyBCodes.every(code=>['B','E','F',''].includes(code)));assert(!onlyBCodes.includes('C'));
 onlyBMonth.schedule[E.key(onlyBStaff.id,1)]='C';onlyBMonth.locks[E.key(onlyBStaff.id,1)]=true;onlyBMonth.requests[E.key(onlyBStaff.id,2)]='W';onlyBMonth.workRequests[E.key(onlyBStaff.id,2)]='C';assert.equal(E.clearMemberConditionConflicts(onlyB,onlyBStaff),1);assert.equal(onlyBMonth.schedule[E.key(onlyBStaff.id,1)],'');assert.equal(onlyBMonth.locks[E.key(onlyBStaff.id,1)],undefined);assert.equal(onlyBMonth.workRequests[E.key(onlyBStaff.id,2)],undefined);
-for(const [name,allowed] of [['パート Gのみ','G'],['パート Bのみ','B']]){const named=E.fresh(),person=named.members[2],record=E.month(named,month);person.name=name;person.memberPrompt='';person.target=16;person.targetMode='max';E.generate(named,month);assert(Object.entries(record.schedule).filter(([cell])=>cell.startsWith(person.id+':')).every(([,code])=>!E.works(code)||code===allowed),name+' の自動作成');}
-for(const [limit,allowed] of [['C','C'],['B・C','B,C']]){const custom=E.fresh(),person=custom.members[2],record=E.month(custom,month);person.allowedShift=limit;person.target=24;person.targetMode='max';E.generate(custom,month);assert(Object.entries(record.schedule).filter(([cell])=>cell.startsWith(person.id+':')).every(([,code])=>!E.works(code)||allowed.split(',').includes(code)),limit+' の自動作成');}
+for(const [name,allowed] of [['パート Gのみ','G'],['パート Bのみ','B']]){const named=withNightReserve(),person=named.members[2],record=E.month(named,month);person.name=name;person.memberPrompt='';person.target=16;person.targetMode='max';E.generate(named,month);assert(Object.entries(record.schedule).filter(([cell])=>cell.startsWith(person.id+':')).every(([,code])=>!E.works(code)||code===allowed),name+' の自動作成');}
+for(const [limit,allowed] of [['C','C'],['B・C','B,C']]){const custom=withNightReserve(),person=custom.members[2],record=E.month(custom,month);person.allowedShift=limit;person.target=24;person.targetMode='max';E.generate(custom,month);assert(Object.entries(record.schedule).filter(([cell])=>cell.startsWith(person.id+':')).every(([,code])=>!E.works(code)||allowed.split(',').includes(code)),limit+' の自動作成');}
 const unknown=E.fresh();E.month(unknown,month);unknown.members[2].memberPrompt='腰痛のため重要事項を確認';const unknownBefore=JSON.stringify(unknown);assert.throws(()=>E.generate(unknown,month),/自動判定できない重要事項/);assert.equal(JSON.stringify(unknown),unknownBefore);assert(E.validate(unknown,month).some(issue=>issue.type==='personalNote'&&issue.id==='s3'));
 const legacy=E.fresh(),lm=E.month(legacy,month);legacy.members[0].target=6;E.generate(legacy,month);
 assert(!Object.entries(lm.schedule).some(([k,c])=>k.startsWith('s1:')&&c==='G'));

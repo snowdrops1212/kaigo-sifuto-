@@ -14,7 +14,7 @@ assert.equal(mo.schedule['s1:3'],'C');assert.equal(mo.schedule['s4:1'],'d');asse
 assert.equal(issues.filter(x=>['request','sequence','availability','inactive','run','night'].includes(x.type)).length,0,JSON.stringify(issues));
 assert.deepEqual(E.checkData(E.copy(s)),s);
 const t=E.fresh(),tm=E.month(t,m);for(const p of t.members)tm.requests[E.key(p.id,5)]='E';
-assert(E.generate(t,m).some(x=>x.type==='coverage'&&x.d===5));
+const shortageSnapshot=JSON.stringify(t);assert.throws(()=>E.generate(t,m),/シフトを完成できません/);assert.equal(JSON.stringify(t),shortageSnapshot,'不足時は既存のシフトを変更しない');
 tm.locks['s1:5']=true;tm.schedule['s1:5']='B';assert.throws(()=>E.generate(t,m),/固定/);
 assert.equal(E.days('2028-02'),29);
 console.log('PASS: requests, paid leave, fixed cells, overnight carry, weekdays, tenure, validation, shortage, conflicting locks, round-trip');
