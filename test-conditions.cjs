@@ -1,6 +1,14 @@
 const assert=require('node:assert/strict');
 const P=require('./dist/conditions.js'),E=require('./dist/engine.js');
 const state=E.fresh(),m=E.month(state,'2026-10'),text=P.template(m.rules);
+assert(text.includes('【シフト作成の順番（毎月適用）】'));
+assert(text.indexOf('全職員の希望休・有給')<text.indexOf('パート・非常勤の職員全員の出勤希望日'));
+assert(text.indexOf('パート・非常勤の職員全員の出勤希望日')<text.indexOf('D→d→Eの夜勤セット'));
+assert(text.indexOf('D→d→Eの夜勤セット')<text.indexOf('勤務時間目安と「以上／以内」'));
+assert.equal(P.withPlanningOrder(text),text);
+const olderPrompt=text.replace(P.planningOrder+'\n\n','')+'\n独自の重要メモ';
+assert(P.withPlanningOrder(olderPrompt).endsWith('独自の重要メモ'));
+assert.equal(P.withPlanningOrder(P.withPlanningOrder(olderPrompt)),P.withPlanningOrder(olderPrompt));
 assert.deepEqual(P.parse(text),{rules:m.rules,errors:[]});
 assert.equal(P.parse(text).rules.D,1);
 for(const replacement of ['Dの人数：0人','Dの人数：2人','Dの人数：1日','Dの人数：1人\nDの人数：1人','Dは1人くらい'])assert(P.parse(text.replace('Dの人数：1人',replacement)).errors.length);

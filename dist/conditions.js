@@ -53,6 +53,13 @@ function parse(text){
  for(const [key,label]of fields)if(!seen.has(key))errors.push(label+'がありません。');
  return {rules,errors};
 }
-const currentTemplate=r=>withFacilityRules(withStaffingRules(template(r)));
-root.ShiftConditions={withStaffingRules,fields,settings,template:currentTemplate,parse,facilityRules,withFacilityRules};if(typeof module!=='undefined')module.exports=root.ShiftConditions;
+const planningOrder='【シフト作成の順番（毎月適用）】\n1. 全職員の希望休・有給を先に登録し、E・Fとして確保する。\n2. パート・非常勤の職員全員の出勤希望日と希望勤務を夜勤より先に確保する。この画面では雇用区分「パート」に登録した職員が対象。勤務不可曜日・個別条件・固定勤務・時間上限と両立しない場合は警告する。\n3. D→d→Eの夜勤セットを同じ職員で組む。前月からの夜勤も引き継ぐ。\n4. 各職員の勤務時間目安と「以上／以内」を確認しながら、C・Bなど残りの勤務を埋める。条件を満たせない枠は無理に別勤務へ変えず警告する。';
+function withPlanningOrder(text){
+ const value=String(text).replace('・手直しして固定したセルは再作成でも保持する。希望と固定勤務が矛盾するときは作成を止める。','・手直しして固定したセルは再作成でも保持する。ただし希望休・有給が固定勤務と重なる場合は希望を優先し、重なる夜勤セットを空欄にして再作成する。'),heading='【シフト作成の順番（毎月適用）】';
+ if(value.includes(heading))return value;
+ const anchor='【基本方針・現在の自動作成】',updated=value.includes(anchor)?value.replace(anchor,planningOrder+'\n\n'+anchor):value+'\n\n'+planningOrder;
+ return updated.length<=20000?updated:value;
+}
+const currentTemplate=r=>withPlanningOrder(withFacilityRules(withStaffingRules(template(r))));
+root.ShiftConditions={withStaffingRules,withPlanningOrder,planningOrder,fields,settings,template:currentTemplate,parse,facilityRules,withFacilityRules};if(typeof module!=='undefined')module.exports=root.ShiftConditions;
 })(typeof window!=='undefined'?window:globalThis);

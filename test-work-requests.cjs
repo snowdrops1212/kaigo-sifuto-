@@ -46,6 +46,18 @@ const fullTime=E.copy(typed);fullTime.members[2].employmentType='full';assert.de
 const invalidFullI=E.copy(typed);invalidFullI.members[2].employmentType='full';invalidFullI.months[m].workRequests[E.key(typedPart.id,6)]='I';assert.throws(()=>E.checkData(invalidFullI),/出勤希望勤務/,'正社員はパート専用Iを選べない');
 const invalidLink=E.copy(typed);invalidLink.months[m].requests[E.key(typedPart.id,6)]='E';assert.throws(()=>E.checkData(invalidLink),/出勤希望勤務/);
 const legacy=E.copy(typed);delete legacy.months[m].workRequests;E.checkData(legacy);assert.deepEqual(legacy.months[m].workRequests,{},'旧保存データには空の希望勤務を補う');
+const ordered=E.fresh(),orderedMonth=E.month(ordered,m),partThree=ordered.members[2],otherPart=ordered.members[3];
+partThree.name='パート３';partThree.employmentType='part';partThree.target=176;
+otherPart.name='別のパート職員';otherPart.employmentType='part';otherPart.target=176;
+for(const [day,code] of [[1,'B'],[3,'C'],[5,'G'],[8,'D']]){const cell=E.key(partThree.id,day);orderedMonth.requests[cell]='W';orderedMonth.workRequests[cell]=code;}
+orderedMonth.requests[E.key(otherPart.id,2)]='W';orderedMonth.workRequests[E.key(otherPart.id,2)]='B';
+orderedMonth.requests[E.key(ordered.members[4].id,3)]='E';
+E.generate(ordered,m);
+for(const [day,code] of [[1,'B'],[3,'C'],[5,'G'],[8,'D']])assert.equal(orderedMonth.schedule[E.key(partThree.id,day)],code,'パート職員の希望勤務を夜勤より先に確保する: '+day);
+assert.equal(orderedMonth.schedule[E.key(partThree.id,9)],'d');assert.equal(orderedMonth.schedule[E.key(partThree.id,10)],'E');
+assert.equal(orderedMonth.schedule[E.key(otherPart.id,2)],'B','氏名に関係なくパート全員の出勤希望を先に確保する');
+assert.equal(orderedMonth.schedule[E.key(ordered.members[4].id,3)],'E','他の職員の希望休も最優先');
+assert(!E.validate(ordered,m).some(issue=>issue.type==='workRequest'&&issue.id===partThree.id));
 assert.equal(E.memberRemovalSummary(s,p.id).requests,5);E.removeMember(s,p.id);
 assert(!Object.keys(r.requests).some(k=>k.startsWith('s3:')));
 assert(E.removeMember(typed,typedPart.id));assert(!Object.keys(typedMonth.workRequests).some(k=>k.startsWith(typedPart.id+':')));
