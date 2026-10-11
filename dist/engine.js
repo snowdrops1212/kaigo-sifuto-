@@ -67,7 +67,7 @@
  }
  function workRequestShiftAllowed(p,code){return !!p&&workRequestShifts.includes(code)&&memberShiftAllowed(p,code)&&(code!=='D'||p.night);}
  function clearMemberConditionConflicts(state,p){let cleared=0;for(const record of Object.values(state.months||{})){for(const [cell,code] of Object.entries(record.schedule||{}))if(cell.startsWith(p.id+':')&&code&&!memberShiftAllowed(p,code)){record.schedule[cell]='';if(record.locks)delete record.locks[cell];cleared++;}for(const [cell,code] of Object.entries(record.workRequests||{}))if(cell.startsWith(p.id+':')&&!workRequestShiftAllowed(p,code))delete record.workRequests[cell];}return cleared;}
- function fresh(){return {version:1,customRoles:[],customShiftLimits:[],members:Array.from({length:12},(_,i)=>({id:'s'+(i+1),name:['管理者（サンプル）','看護職員（サンプル）',...Array.from({length:10},(_,j)=>`介護職員${String(j+1).padStart(2,'0')}（サンプル）`)][i],role:i===0?'管理者':i===1?'看護職員':'介護職員',employmentType:'full',usesI:false,night:i>=2&&i<=6,nightMax:7,weekdays:[0,1,2,3,4,5,6],start:'',end:'',target:0,targetMode:'max'})),users:[],months:{}};}
+ function fresh(){return {version:1,customRoles:[],customShiftLimits:[],planningGuideNotes:'',members:Array.from({length:12},(_,i)=>({id:'s'+(i+1),name:['管理者（サンプル）','看護職員（サンプル）',...Array.from({length:10},(_,j)=>`介護職員${String(j+1).padStart(2,'0')}（サンプル）`)][i],role:i===0?'管理者':i===1?'看護職員':'介護職員',employmentType:'full',usesI:false,night:i>=2&&i<=6,nightMax:7,weekdays:[0,1,2,3,4,5,6],start:'',end:'',target:0,targetMode:'max'})),users:[],months:{}};}
  function month(state,m){if(!state.months[m])state.months[m]={requests:{},workRequests:{},schedule:{},locks:{},previous:{},targets:{},daily:{},meetings:[],rules:{B:0,C:2,D:1,maxRun:5,off:9},generated:false};if(!state.months[m].workRequests)state.months[m].workRequests={};return state.months[m];}
  // B/C/D use the fixed facility policy even when legacy monthly or daily settings are loaded.
  const staffingNeed=(mo,d,code)=>code==='B'?0:code==='C'?2:code==='D'?1:(mo.daily[d]?.[code]??mo.rules[code]);
@@ -269,6 +269,8 @@
   if(!Array.isArray(x.customRoles)||x.customRoles.length>100||new Set(x.customRoles).size!==x.customRoles.length||x.customRoles.some(role=>typeof role!=='string'||!role.trim()||role!==role.trim()||role.length>50||role==='__custom__'))throw Error('手書き職種の情報が正しくありません。');
   if(x.customShiftLimits===undefined)x.customShiftLimits=[];
   if(!Array.isArray(x.customShiftLimits)||x.customShiftLimits.length>100||new Set(x.customShiftLimits).size!==x.customShiftLimits.length||x.customShiftLimits.some(value=>{const parsed=parseAllowedShift(value);return parsed.error||!parsed.value||parsed.value!==value;}))throw Error('保存された手入力の勤務限定が正しくありません。');
+  if(x.planningGuideNotes===undefined)x.planningGuideNotes='';
+  if(typeof x.planningGuideNotes!=='string'||x.planningGuideNotes.length>5000)throw Error('シフトを組むコツは5,000文字以内で入力してください。');
   const checkPeriod=(person,label)=>{
    if(person.start===undefined)person.start='';if(person.end===undefined)person.end='';
    if(typeof person.start!=='string'||person.start&&!validCalendarDate(person.start))throw Error(`${label}の開始日が正しくありません。`);

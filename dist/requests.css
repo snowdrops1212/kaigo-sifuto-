@@ -58,6 +58,7 @@ body.schedule-expanded #schedule-viewport{flex:1;min-height:0;height:auto;max-he
 @page{size:A3 landscape;margin:6mm}
 @media print{
  html,body{margin:0!important;background:#fff!important;color:#000!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+ body.schedule-expanded{overflow:visible!important}
  body>header,main>.top,main>nav,main>footer,#toast,dialog,#content>:not(#schedule-panel){display:none!important}
  main{padding:0!important;margin:0!important;max-width:none!important}
  #schedule-panel,body.schedule-expanded #schedule-panel{position:static!important;inset:auto!important;display:block!important;overflow:visible!important;border:0!important;border-radius:0!important;padding:0!important;margin:0!important}
@@ -66,20 +67,25 @@ body.schedule-expanded #schedule-viewport{flex:1;min-height:0;height:auto;max-he
  #schedule-panel>.panel-head .desc,.schedule-actions,.schedule-view-toolbar,#schedule-panel>.equivalent-note,#schedule-panel>.subtle{display:none!important}
  #schedule-panel>.legend{font-size:7.5pt!important;gap:2.4mm!important;margin:0 0 2.5mm!important}
  #schedule-panel>.legend .chip{font-size:7.5pt!important;padding:.45mm 1.2mm!important}
- #schedule-viewport{display:block!important;overflow:visible!important;height:auto!important;max-height:none!important;border:1px solid #9aa7ad!important;border-radius:0!important}
- #schedule-canvas{zoom:1!important;width:100%!important}
+ #schedule-viewport{display:block!important;width:100%!important;min-height:0!important;overflow:visible!important;height:auto!important;max-height:none!important;border:1px solid #9aa7ad!important;border-radius:0!important}
+ #schedule-canvas{zoom:1!important;width:100%!important;padding-inline:0!important;transform:none!important;box-sizing:border-box!important}
  .schedule-grid{width:100%!important;height:auto!important;table-layout:fixed!important;font-size:7.5pt!important}
  .schedule-grid col.schedule-name-col{width:34mm!important}
  .schedule-grid col.schedule-day-col{width:auto!important}
- .schedule-grid col.schedule-hours-col{width:16mm!important}.schedule-grid col.schedule-night-col,.schedule-grid col.schedule-holiday-col{width:10mm!important}
+ .schedule-grid col.schedule-hours-col{width:20mm!important}.schedule-grid col.schedule-night-col,.schedule-grid col.schedule-holiday-col{width:8mm!important}
  .schedule-grid thead{display:table-header-group}
  .schedule-grid tr{break-inside:avoid;page-break-inside:avoid}
- .schedule-grid th,.schedule-grid td,.schedule-grid thead th,.schedule-grid .equivalent-row th,.schedule-grid .equivalent-row td{position:static!important;padding:1mm .45mm!important;border-color:#b8c0c4!important;white-space:nowrap!important}
+ .schedule-grid th,.schedule-grid td,.schedule-grid thead th,.schedule-grid .equivalent-row th,.schedule-grid .equivalent-row td{position:static!important;height:auto!important;min-height:0!important;padding:1mm .45mm!important;border-color:#b8c0c4!important;border-right:1px solid #b8c0c4!important;white-space:nowrap!important;font-size:7pt!important;line-height:1.2!important}
  .schedule-grid th:first-child,.schedule-grid td:first-child{position:static!important;min-width:0!important;max-width:none!important;background:#fff!important}
  .schedule-grid thead th,.schedule-grid thead th:first-child,.schedule-grid .summary-row th,.schedule-grid .summary-row td,.schedule-grid .equivalent-row th,.schedule-grid .equivalent-row td{background:#edf1f3!important}
- .schedule-grid thead th small,.schedule-grid .person-role,.schedule-grid .equivalent-row small{font-size:6pt!important;line-height:1.2!important}
- .schedule-grid .person-name{font-size:7.5pt!important;line-height:1.2!important}
- .schedule-grid .cell{display:block!important;width:100%!important;min-width:0!important;min-height:0!important;padding:.45mm .15mm!important;border-radius:.7mm!important;font-size:7.5pt!important;line-height:1.35!important;color:#000!important}
+ .schedule-grid thead th:nth-last-child(3),.schedule-grid .schedule-hours-total{white-space:normal!important;overflow-wrap:anywhere!important;font-size:6.5pt!important}
+ .schedule-grid .person-heading,.schedule-grid .person-identity{display:block!important;min-height:0!important}
+ .schedule-grid .person-name,.schedule-grid .person-role,.schedule-grid .member-work-limit{display:block!important;min-width:0!important;margin:0!important;padding:0!important;border:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;line-height:1.15!important}
+ .schedule-grid .person-name{font-size:7.5pt!important}.schedule-grid .person-role,.schedule-grid .member-work-limit,.schedule-grid thead th small,.schedule-grid .equivalent-row small{font-size:6pt!important}
+ .schedule-grid .annual-paid-badge{display:none!important}
+ .schedule-grid .daily-count-rows .chip{font-size:6.5pt!important;padding:0!important;line-height:1.1!important}
+ .schedule-grid .week-group{font-size:7pt!important}
+ .schedule-grid .cell{display:block!important;width:100%!important;height:auto!important;min-width:0!important;min-height:0!important;margin:0!important;padding:.45mm .15mm!important;border-radius:.7mm!important;font-size:7.5pt!important;line-height:1.35!important;color:#000!important}
 }
 .meeting-section{border-top:1px solid var(--line);margin-top:16px;padding-top:14px}.meeting-form{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin:10px 0}.meeting-form button,.meeting-dates button{min-height:44px}.meeting-form input{min-height:46px;font-size:16px;width:190px;max-width:100%}.meeting-dates{display:flex;flex-wrap:wrap;gap:8px}.meeting-dates button{background:#e3eef2;border-color:#b9cdd5}.meeting-errors{color:var(--red);background:#fff4ee;border-radius:7px;font-size:14px;padding:12px 12px 12px 30px}.condition-panel #meeting-condition-prompt{min-height:0;min-block-size:9em;resize:vertical;font-size:14px;line-height:1.65;background:#f5f8fa}.meeting-condition{margin-bottom:18px}@media(max-width:480px){.meeting-form>.field{width:100%}.meeting-form .request-date-input{flex-wrap:wrap}}
 .member-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap}.member-actions button{min-height:44px}button.danger{color:#a32934;border-color:#deb5b9;background:#fff7f7}button.danger:hover{background:#ffe8e9;border-color:#a32934}@media(max-width:480px){.member-card{flex-wrap:wrap}.member-actions{margin-left:auto}}

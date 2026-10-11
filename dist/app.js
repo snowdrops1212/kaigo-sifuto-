@@ -20,6 +20,7 @@ function setShiftRequestsFromAgent(input){
 }
 if(document.modelContext?.registerTool){
  const tools=[
+  {name:'read_shift_planning_guide',title:'シフト作成の優先順を確認',description:'毎月の自動作成で使う順番と保存された追加メモを読み取ります。追加メモは自動作成へ未適用です。',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute:()=>({order:ShiftConditions.planningOrder,additionalNotes:state.planningGuideNotes||'',additionalNotesAutomaticallyApplied:false})},
   {name:'read_shift_requests',title:'希望休を確認',description:'選択中の月の希望休を読み取ります。',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute:()=>({month:current,requests:mo().requests,workRequests:mo().workRequests,members:state.members.map(p=>({id:p.id,name:p.name}))})},
   {name:'set_shift_requests',title:'希望休を登録',description:'指定職員の指定日に希望休・有給・出勤希望（W）を登録。正社員・パートとも出勤希望では勤務記号を指定できます。作成済みシフトには希望休・有給を即時反映し、重なる夜勤セットは空欄にします。',inputSchema:{type:'object',properties:{memberId:{type:'string'},days:{type:'array',items:{type:'integer'}},type:{type:'string',enum:['E','F','W']},workShift:{type:'string',enum:['G','J','L','M','C','/C',"C'","/C'",'D','B','I','/B']}},required:['memberId','days','type'],additionalProperties:false},execute:setShiftRequestsFromAgent}
  ];

@@ -94,6 +94,7 @@ function applyTimeOffToSchedule(personId,month,day,requested){
 }
 function bindRequestControls(){
  bindMeetingControls();
+ $('#open-planning-guide').onclick=()=>{tab='planning';render();};
  document.querySelectorAll('[data-remove-request]').forEach(button=>button.onclick=()=>removeRequest(button.dataset.removeRequest,+button.dataset.removeDay));
  $('#open-request-calendar').onclick=()=>openRequestCalendar();
  $('#request-person').onchange=e=>{requestPerson=e.target.value;render();$('#request-person').focus({preventScroll:true});};
@@ -142,4 +143,4 @@ function requestSummary(){
  return '<div class="request-summary-compact" id="request-summary" aria-labelledby="request-summary-title"><div class="request-summary-heading"><h3 id="request-summary-title">'+year+'年'+month+'月の希望一覧</h3><span class="subtle">'+people.length+'人・'+total+'日分（延べ）</span></div>'+
  (people.length?'<ul class="request-summary-list">'+people.map(p=>'<li data-summary-person="'+esc(p.person.id)+'"><strong class="request-summary-name">'+esc(p.person.name)+'</strong>'+p.groups.map(g=>'<div class="request-summary-kind"><span class="request-summary-label">'+g.label+'</span><div class="request-summary-dates" data-summary-kind="'+g.code+'">'+(g.dates.length?g.dates.map(day=>{const shift=g.code==='W'?mo().workRequests[k(p.person.id,day)]||'':'',dateText=day+'日（'+'日月火水木金土'[E.weekday(current,day)]+'）'+(shift?'・'+shift+' '+E.shifts[shift].label:'');return '<span class="request-summary-date '+g.cls+'">'+dateText+'<button type="button" class="request-summary-remove" data-remove-request="'+esc(p.person.id)+'" data-remove-day="'+day+'" aria-label="'+esc(p.person.name+'の'+day+'日の'+g.label+'を削除')+'" title="この希望を削除"><span aria-hidden="true">×</span></button></span>';}).join(''):'<span class="subtle">なし</span>')+'</div></div>').join('')+'</li>').join('')+'</ul>':'<p class="request-summary-empty">この月の希望休・有給・出勤希望はまだ登録されていません。</p>')+'</div>';
 }
-function scheduleRequestPanel(){return '<section class="panel" id="schedule-request-panel"><div class="panel-head"><h2>希望休・有給・出勤希望を登録</h2>'+(mo().generated?'':'<div class="toolbar">'+undoBar()+'</div>')+'</div>'+requestControls()+paidYearNote()+'<p class="subtle">作成済みのシフトに希望休・有給を登録すると、その日の勤務へすぐ反映します。重なる夜勤セットは空欄になり、再作成で組み直せます。</p>'+requestSummary()+meetingControls()+'</section>';}
+function scheduleRequestPanel(){return '<section class="panel" id="schedule-request-panel"><div class="panel-head"><h2>希望休・有給・出勤希望を登録</h2><div class="toolbar"><button type="button" id="open-planning-guide">組む順番を見る</button>'+(mo().generated?'':undoBar())+'</div></div>'+requestControls()+paidYearNote()+'<p class="subtle">作成済みのシフトに希望休・有給を登録すると、その日の勤務へすぐ反映します。重なる夜勤セットは空欄になり、再作成で組み直せます。</p>'+requestSummary()+meetingControls()+'</section>';}
