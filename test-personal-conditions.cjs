@@ -44,7 +44,7 @@ for(const hours of [6,14]){
  assert.equal(values.filter(c=>c==='G').length,1);assert.equal(values.reduce((n,c)=>n+(E.shifts[c]?.hours||0),0),hours);assert.equal(gm.schedule['s1:1'],'E');
  assert.equal(E.dailyEquivalent(g,month).find(r=>gm.schedule[E.key('s1',r.day)]==='G').tenths%10,7);
 }
-const withNightReserve=()=>{const roster=E.fresh();for(const member of roster.members.slice(3,7))member.nightMax=10;return roster;};
+const withNightReserve=()=>{const roster=E.fresh();for(const member of roster.members.slice(3,7)){member.nightMax=10;member.employmentType='part';}return roster;};
 const onlyG=withNightReserve(),onlyGMonth=E.month(onlyG,month),onlyGStaff=onlyG.members[2];onlyGStaff.memberPrompt='Gのみ';onlyGStaff.target=18;onlyGStaff.targetMode='max';E.generate(onlyG,month);
 const onlyGCodes=Object.entries(onlyGMonth.schedule).filter(([key])=>key.startsWith(onlyGStaff.id+':')).map(([,code])=>code);assert.equal(onlyGCodes.filter(code=>code==='G').length,3);assert(onlyGCodes.every(code=>['G','E','F',''].includes(code)));assert(!E.validate(onlyG,month).some(issue=>issue.type==='personal'&&issue.id===onlyGStaff.id));
 onlyGMonth.schedule[E.key(onlyGStaff.id,1)]='B';assert(E.validate(onlyG,month).some(issue=>issue.type==='personal'&&issue.id===onlyGStaff.id&&issue.d===1));

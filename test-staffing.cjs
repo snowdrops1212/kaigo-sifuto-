@@ -23,7 +23,7 @@ assert(E.dailyCounts(g,month).every(row=>row.counts.D===1),'夜勤Dを毎日ち�
 assert.equal(gm.schedule['s1:5'],'E');assert.equal(gm.schedule['s2:6'],'F');assert.equal(gm.schedule['s3:7'],'C');
 assert.equal(JSON.stringify({rules:gm.rules,daily:gm.daily,requests:gm.requests,locks:gm.locks}),retained);
 assert(!E.validate(g,month).some(x=>x.type==='coverage'));
-const tight=E.fresh();tight.members[2].night=false;tight.members[3].nightMax=11;E.generate(tight,month);assert(E.dailyCounts(tight,month).every(row=>row.counts.D===1),'夜勤可能者が少ない月でも上限の余裕を使って毎日Dを確保する');
+const tight=E.fresh();tight.members[2].night=false;tight.members[3].nightMax=11;assert.throws(()=>E.generate(tight,month),/シフトを完成できません/,'夜勤可能者が4人だけでは、夜勤セットとは別の休日9日と毎日D1を両立できない');
 const hoursState=E.fresh(),hoursMonth=E.month(hoursState,month),hoursPerson=hoursState.members[2];hoursPerson.target=16;hoursPerson.targetMode='min';hoursMonth.schedule[E.key(hoursPerson.id,1)]='B';
 assert(E.validate(hoursState,month).some(x=>x.type==='hours'&&x.id===hoursPerson.id&&x.text.includes('16時間以上')));
 hoursMonth.schedule[E.key(hoursPerson.id,2)]='B';assert(!E.validate(hoursState,month).some(x=>x.type==='hours'&&x.id===hoursPerson.id));

@@ -25,9 +25,9 @@ assert(codes.every(code=>['I','E','F'].includes(code)));
 assert(codes.filter(code=>code==='E').length>=9);
 assert(!E.validate(state,month).some(x=>x.type==='iOff'&&x.id===part.id));
 
-part.target=200;part.targetMode='min';E.generate(state,month);
-const highTargetCodes=Array.from({length:E.days(month)},(_,i)=>mo.schedule[E.key(part.id,i+1)]);
-assert(highTargetCodes.filter(code=>code==='E').length>=9,'高い時間目安でもI勤務者の月9日休みを維持する');
+part.target=200;part.targetMode='min';const beforeImpossible=JSON.stringify(mo.schedule);
+assert.throws(()=>E.generate(state,month),/両方必須.*シフト作成を止めました/,'I勤務200時間以上と休日9日の両立が不可能なら停止');
+assert.equal(JSON.stringify(mo.schedule),beforeImpossible,'不可能な再作成では保存済みのシフトを残す');
 
 for(let day=1;day<=E.days(month);day++)mo.schedule[E.key(part.id,day)]='I';
 assert(E.validate(state,month).some(x=>x.type==='iOff'&&x.id===part.id&&x.text.includes('月9日')));

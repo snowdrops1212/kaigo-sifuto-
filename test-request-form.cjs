@@ -18,7 +18,7 @@ assert(!pageHTML.includes('data-tab="conditions"'));assert(!pageHTML.includes('�
 assert.deepEqual([...pageHTML.matchAll(/data-tab="([^"]+)"/g)].map(m=>m[1]),['schedule','planning','members']);
 assert(!fs.readFileSync('./dist/app.js','utf8').includes('function renderConditions'));
 run("tab='planning';render()");
-assert.equal((el('#content').innerHTML.match(/自動作成に反映済み/g)||[]).length,5);
+assert.equal((el('#content').innerHTML.match(/自動作成に反映済み/g)||[]).length,6);
 assert(el('#content').innerHTML.includes('id="planning-staff-prompt"'));
 assert(el('#content').innerHTML.includes('最初に職員一人ひとりの情報を確認する'));
 assert(el('#content').innerHTML.includes('パート・非常勤の職員全員'));
