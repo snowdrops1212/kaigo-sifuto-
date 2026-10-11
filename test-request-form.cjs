@@ -338,7 +338,7 @@ assert(el('#person-form select[name="role"]').innerHTML.includes('value="__custo
 el('#person-form select[name="role"]').value='__custom__';el('#person-form select[name="role"]').onchange();assert.equal(el('#custom-role-field').hidden,false);assert.equal(el('#custom-role').required,true);el('#person-form select[name="role"]').value='介護職員';el('#person-form select[name="role"]').onchange();assert.equal(el('#custom-role-field').hidden,true);
 assert(editor.innerHTML.includes('name="targetMode" value="min"'));assert(editor.innerHTML.includes('name="targetMode" value="max"'));assert(editor.innerHTML.includes('<span>以上</span>'));assert(editor.innerHTML.includes('<span>以内</span>'));
 assert(editor.innerHTML.includes('I勤務者は月9日休みを維持しながら入力でき'));assert(!fs.readFileSync('./dist/app-members.js','utf8').includes('targetInput.readOnly'));
-assert(editor.innerHTML.includes('翌日のdと翌々日のEは、曜日設定より優先'));
+assert(editor.innerHTML.includes('Dの日と翌日のdは両日とも勤務できる曜日が必要'));
 assert(editor.innerHTML.includes('id="paid-leave-preview"'));assert(el('#paid-leave-preview').innerHTML.includes('入職日を入力'));
 el('#person-form input[name="start"]').value='2026-01-15';el('#person-form input[name="start"]').oninput();
 assert(el('#paid-leave-preview').innerHTML.includes('2026-07-15'));assert(el('#paid-leave-preview').innerHTML.includes('2027-07-14'));
@@ -383,12 +383,23 @@ run("state=E.fresh();current='2026-11';tab='schedule';undo=[];redo=[];mo().gener
 el('#lock-edit').checked=true;limitChoices[0].onclick();assert.equal(run("JSON.stringify([state.months['2026-11'].schedule['s3:30'],state.months['2026-12'].schedule['s3:1'],state.months['2026-12'].schedule['s3:2']])"),'["B","",""]');assert.equal(run("JSON.stringify([state.months['2026-12'].locks['s3:1'],state.months['2026-12'].locks['s3:2']])"),'[null,null]');
 console.log('PASS: changing D to B clears the following d and E, including across month boundaries, and undo restores the sequence');
 
+const nightChoices=[{dataset:{choice:'D'}}];editor.querySelectorAll=s=>s==='[data-choice]'?nightChoices:[];
+run("state=E.fresh();current='2026-10';tab='schedule';undo=[];redo=[];mo().generated=true;mo().requests['s3:12']='W';mo().workRequests['s3:12']='B';render();editCell('s3',10)");
+nightChoices[0].onclick();assert.equal(run("mo().schedule['s3:10']||''"),'');assert(el('#toast').textContent.includes('出勤希望'),'翌々日の出勤希望と衝突するとDを入れない');
+run("state=E.fresh();current='2026-10';tab='schedule';undo=[];redo=[];mo().generated=true;{const futureRecord=E.month(state,'2026-11');futureRecord.requests['s3:2']='W';futureRecord.workRequests['s3:2']='B';}render();editCell('s3',31)");
+nightChoices[0].onclick();assert.equal(run("mo().schedule['s3:31']||''"),'');assert(el('#toast').textContent.includes('出勤希望'),'翌月の出勤希望と衝突してもDを入れない');
+run("state=E.fresh();current='2026-10';tab='schedule';undo=[];redo=[];mo().generated=true;state.members[2].night=false;render();editCell('s3',10)");
+nightChoices[0].onclick();assert.equal(run("mo().schedule['s3:10']||''"),'');assert(el('#toast').textContent.includes('夜勤不可'));
+run("state=E.fresh();current='2026-10';tab='schedule';undo=[];redo=[];mo().generated=true;render();editCell('s3',10)");
+nightChoices[0].onclick();assert.equal(run("JSON.stringify([mo().schedule['s3:10'],mo().schedule['s3:11'],mo().schedule['s3:12']])"),'["D","d","E"]');
+console.log('PASS: manual D edits require one staff member to be available for the complete three-day sequence, including across month boundaries');
+
 editor.querySelectorAll=()=>[];
 run("state=E.fresh();current='2026-10';tab='schedule';undo=[];redo=[];state.members[3].target=8;state.members[3].targetMode='max';mo().generated=true;mo().schedule['s3:10']='D';mo().schedule['s3:11']='d';mo().schedule['s3:12']='E';mo().schedule['s4:10']='B';mo().schedule['s4:11']='B';mo().schedule['s4:12']='E';render();editCell('s3',10)");
 el('#swap-person').value='s4';const cappedSwapBefore=run('JSON.stringify(mo().schedule)');el('#swap').onclick();assert.equal(run('JSON.stringify(mo().schedule)'),cappedSwapBefore);assert(el('#toast').textContent.includes('8時間以内'));
 run("state.members[3].targetMode='min';editCell('s3',10)");el('#swap-person').value='s4';el('#swap').onclick();assert.equal(run("JSON.stringify([mo().schedule['s3:10'],mo().schedule['s3:11'],mo().schedule['s3:12']])"),'["B","",""]');assert.equal(run("JSON.stringify([mo().schedule['s4:10'],mo().schedule['s4:11'],mo().schedule['s4:12']])"),'["D","d","E"]');assert(el('#toast').textContent.includes('3日間をまとめて交代'));assert(el('#toast').textContent.includes('d・Eを空欄'));
 const nightSwapAfter=run('JSON.stringify(mo().schedule)');run("editCell('s4',11)");el('#swap-person').value='s3';el('#swap').onclick();assert.equal(run('JSON.stringify(mo().schedule)'),nightSwapAfter);assert(el('#toast').textContent.includes('途中交代することはできません'));
-run("state=E.fresh();current='2026-11';tab='schedule';undo=[];redo=[];state.members[3].weekdays=[E.weekday('2026-11',30)];mo().generated=true;mo().schedule['s3:30']='D';E.month(state,'2026-12').generated=true;state.months['2026-12'].schedule['s3:1']='d';state.months['2026-12'].schedule['s3:2']='E';mo().schedule['s4:30']='B';state.months['2026-12'].schedule['s4:1']='C';state.months['2026-12'].schedule['s4:2']='E';render();editCell('s3',30)");
+run("state=E.fresh();current='2026-11';tab='schedule';undo=[];redo=[];state.members[3].weekdays=[E.weekday('2026-11',30),E.weekday('2026-12',1)];mo().generated=true;mo().schedule['s3:30']='D';E.month(state,'2026-12').generated=true;state.months['2026-12'].schedule['s3:1']='d';state.months['2026-12'].schedule['s3:2']='E';mo().schedule['s4:30']='B';state.months['2026-12'].schedule['s4:1']='C';state.months['2026-12'].schedule['s4:2']='E';render();editCell('s3',30)");
 el('#swap-person').value='s4';el('#swap').onclick();assert.equal(run("JSON.stringify([state.months['2026-11'].schedule['s4:30'],state.months['2026-12'].schedule['s4:1'],state.months['2026-12'].schedule['s4:2']])"),'["D","d","E"]');assert.equal(run("JSON.stringify([state.months['2026-11'].schedule['s3:30'],state.months['2026-12'].schedule['s3:1'],state.months['2026-12'].schedule['s3:2']])"),'["B","",""]');
 console.log('PASS: D handoff moves the whole D-d-E block to one replacement, clears the former owner tail, blocks mid-sequence handoff and supports month boundaries');
 

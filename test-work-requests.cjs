@@ -28,9 +28,10 @@ E.generate(s,m);assert.equal(r.schedule['s1:7'],'B');
 // Night-only restrictions and post-night rest must remain authoritative.
 const s2=E.fresh(),r2=E.month(s2,m),p2=s2.members[2];p2.memberPrompt='夜勤専門';
 r2.rules.D=0;r2.previous[p2.id]='D';r2.requests['s3:2']='W';r2.requests['s3:8']='W';
-E.generate(s2,m);assert.equal(r2.schedule['s3:1'],'d');assert.equal(r2.schedule['s3:2'],'E');
+const blockedCarry=JSON.stringify(s2);assert.throws(()=>E.generate(s2,m),/出勤希望と夜勤後のE/,'前月の夜勤セットと出勤希望が衝突すれば作成を止める');assert.equal(JSON.stringify(s2),blockedCarry);
+delete r2.requests['s3:2'];E.generate(s2,m);assert.equal(r2.schedule['s3:1'],'d');assert.equal(r2.schedule['s3:2'],'E');
 assert(!Object.entries(r2.schedule).some(([k,c])=>k.startsWith('s3:')&&['B','C','G'].includes(c)));
-assert(E.validate(s2,m).some(x=>x.type==='workRequest'&&x.d===2));
+assert(!E.validate(s2,m).some(x=>x.type==='sequence'&&x.id===p2.id&&x.d<=2));
 
 // Part-time work requests can specify the exact shift and remain soft constraints.
 const typed=E.fresh(),typedMonth=E.month(typed,m),typedPart=typed.members[2];typedPart.employmentType='part';typedPart.night=false;typedPart.target=176;typedPart.targetMode='min';typedMonth.rules.D=0;

@@ -20,6 +20,7 @@ function withStaffingRules(text){
  }).join('\n');
  for(const [oldText,newText]of [["・保存済みの日別B・C・Dの必要人数は、月の最低人数より優先する（日別入力欄は非表示）。","・Bは人数制限なし（0人でも可）。Cは毎日ちょうど2人。以前の月別・日別のB・C人数よりこの条件を優先する。Dは保存済みの日別最低人数を月の設定より優先する。"],["・夜勤を先に組み、日中は勤務可能な職員が少ない日からC・Bの必要人数を埋め、残りはBで時間目安に近づける。","・夜勤を先に組み、日中は勤務可能な職員が少ない日からCを2人にし、残りはBで時間目安に近づける。Cの固定勤務が2人を超える場合は作成を停止する。Cが不足する案や手動変更で過不足が出た場合は警告する。"],["初期のB2人・C2人・D1人、連勤上限5日・休日目安9日は試作版の仮設定。","現在はBの人数制限なし・Cは毎日ちょうど2人。D1人、連勤上限5日・休日目安9日は試作版の仮設定。"]])value=value.replace(oldText,newText);
  value=value.replace('・G・I・半日勤務・Aの自動割当は未対応。手動で入力し、必要なら固定する。','・職員の個別メモ欄は対応する定型文のみ自動適用する。「G勤務：可能」は残り6〜7時間の場合にG（6時間）を候補にする。「勤務区分：夜勤専門」は勤務をD・dに制限する。その他の文章はメモ。I・半日勤務・Aの自動割当は未対応。');
+ value=value.replace('・D（夜勤入り）→翌日d（明け）→翌々日E（休日）を基本とする。希望・固定と両立しない場合は警告を確認する。','・D（夜勤入り）→翌日d（明け）→翌々日E（休日）を同じ職員に必ず3日連続で割り当てる。月をまたいでも引き継ぎ、どこかが両立しなければその職員にDを割り当てない。');
  value=value.replace('・Bは人数制限なし（0人でも可）。Cは毎日ちょうど2人。以前の月別・日別のB・C人数よりこの条件を優先する。Dは保存済みの日別最低人数を月の設定より優先する。','・Aは使用しない。Bは人数制限なし（0人でも可）。Cは毎日ちょうど2人、Dは毎日ちょうど1人。以前の月別・日別のB・C・D人数よりこの固定条件を優先する。');
  value=value.replace('・夜勤を先に組み、日中は勤務可能な職員が少ない日からCを2人にし、残りはBで時間目安に近づける。Cの固定勤務が2人を超える場合は作成を停止する。Cが不足する案や手動変更で過不足が出た場合は警告する。','・夜勤Dを毎日1人、日中は勤務可能な職員が少ない日からCを2人にし、残りはBで時間目安に近づける。C・Dの固定勤務が定員を超える場合は作成を停止し、手動変更による過不足も警告する。');
  value=value.replace('・A・E・F・/B・/C・空欄はこの合計に含めない。','・E・F・/B・/C・空欄はこの合計に含めない。');
@@ -54,14 +55,18 @@ function parse(text){
  return {rules,errors};
 }
 const previousPlanningOrder='【シフト作成の順番（毎月適用）】\n1. 全職員の希望休・有給を先に登録し、E・Fとして確保する。\n2. パート・非常勤の職員全員の出勤希望日と希望勤務を夜勤より先に確保する。この画面では雇用区分「パート」に登録した職員が対象。勤務不可曜日・個別条件・固定勤務・時間上限と両立しない場合は警告する。\n3. D→d→Eの夜勤セットを同じ職員で組む。前月からの夜勤も引き継ぐ。\n4. 各職員の勤務時間目安と「以上／以内」を確認しながら、C・Bなど残りの勤務を埋める。条件を満たせない枠は無理に別勤務へ変えず警告する。';
-const planningOrder='【シフト作成の順番（毎月適用）】\n1. 最初に職員一人ひとりの情報を確認する。氏名・職種・雇用区分・勤務限定・個別メモ・夜勤可否と上限・今月の勤務時間目安・有給利用可否を、職員入力欄と連動する最新の職員条件プロンプトで確認する。対象月に在籍する職員に矛盾や自動判定できない重要メモがあれば作成を止める。\n2. 全職員の希望休・有給を登録し、E・Fとして確保する。\n3. パート・非常勤の職員全員の出勤希望日と希望勤務を夜勤より先に確保する。この画面では雇用区分「パート」に登録した職員が対象。勤務不可曜日・個別条件・固定勤務・時間上限と両立しない場合は警告する。\n4. D→d→Eの夜勤セットを同じ職員で組む。前月からの夜勤も引き継ぐ。\n5. 各職員の勤務時間目安と「以上／以内」を確認しながら、C・Bなど残りの勤務を埋める。条件を満たせない枠は無理に別勤務へ変えず警告する。';
+const oldCurrentPlanningOrder='【シフト作成の順番（毎月適用）】\n1. 最初に職員一人ひとりの情報を確認する。氏名・職種・雇用区分・勤務限定・個別メモ・夜勤可否と上限・今月の勤務時間目安・有給利用可否を、職員入力欄と連動する最新の職員条件プロンプトで確認する。対象月に在籍する職員に矛盾や自動判定できない重要メモがあれば作成を止める。\n2. 全職員の希望休・有給を登録し、E・Fとして確保する。\n3. パート・非常勤の職員全員の出勤希望日と希望勤務を夜勤より先に確保する。この画面では雇用区分「パート」に登録した職員が対象。勤務不可曜日・個別条件・固定勤務・時間上限と両立しない場合は警告する。\n4. D→d→Eの夜勤セットを同じ職員で組む。前月からの夜勤も引き継ぐ。\n5. 各職員の勤務時間目安と「以上／以内」を確認しながら、C・Bなど残りの勤務を埋める。条件を満たせない枠は無理に別勤務へ変えず警告する。';
+const planningOrder=oldCurrentPlanningOrder.replace('4. D→d→Eの夜勤セットを同じ職員で組む。前月からの夜勤も引き継ぐ。','4. 毎日Dをちょうど1人にし、その同じ職員に翌日d・翌々日Eを3日連続で確保する。途中交代はしない。月をまたいでも引き継ぎ、3日間のどこかが勤務条件・希望・固定予定と両立しなければ、この職員に夜勤セットを割り当てない。');
+const absoluteRules='【絶対条件：毎日の配置と夜勤の3日セット】\n・Aは使用しない。Bの人数に上限・下限はない。Cは毎日ちょうど2人、Dは毎日ちょうど1人にする。保存済みの旧人数設定より優先する。\n・Dを担当した職員本人が翌日にd、翌々日にEを取る。3日連続・同一職員のセットとし、途中で別の人と交代しない。月末のD・dも翌月へ引き継ぐ。\n・3日間のいずれかに在籍外、勤務不可、希望休・有給・出勤希望との衝突、固定予定などがあり成立しない場合、その職員のD自体を割り当てない。3日分を無理に分割しない。\n・条件を満たせる職員が足りなければ、別勤務で人数を偽らず、作成を止めて不足日と条件を知らせる。';
+function withAbsoluteRules(text){const value=String(text),heading='【絶対条件：毎日の配置と夜勤の3日セット】';if(value.includes(heading))return value;const anchor='【基本方針・現在の自動作成】',updated=value.includes(anchor)?value.replace(anchor,absoluteRules+'\n\n'+anchor):value+'\n\n'+absoluteRules;return updated.length<=20000?updated:value;}
 function withPlanningOrder(text){
  const value=String(text).replace('・手直しして固定したセルは再作成でも保持する。希望と固定勤務が矛盾するときは作成を止める。','・手直しして固定したセルは再作成でも保持する。ただし希望休・有給が固定勤務と重なる場合は希望を優先し、重なる夜勤セットを空欄にして再作成する。'),heading='【シフト作成の順番（毎月適用）】';
  if(value.includes(previousPlanningOrder)){const updated=value.replace(previousPlanningOrder,planningOrder);return updated.length<=20000?updated:value;}
+ if(value.includes(oldCurrentPlanningOrder)){const updated=value.replace(oldCurrentPlanningOrder,planningOrder);return updated.length<=20000?updated:value;}
  if(value.includes(heading))return value;
  const anchor='【基本方針・現在の自動作成】',updated=value.includes(anchor)?value.replace(anchor,planningOrder+'\n\n'+anchor):value+'\n\n'+planningOrder;
  return updated.length<=20000?updated:value;
 }
-const currentTemplate=r=>withPlanningOrder(withFacilityRules(withStaffingRules(template(r))));
-root.ShiftConditions={withStaffingRules,withPlanningOrder,planningOrder,fields,settings,template:currentTemplate,parse,facilityRules,withFacilityRules};if(typeof module!=='undefined')module.exports=root.ShiftConditions;
+const currentTemplate=r=>withAbsoluteRules(withPlanningOrder(withFacilityRules(withStaffingRules(template(r)))));
+root.ShiftConditions={withStaffingRules,withPlanningOrder,withAbsoluteRules,planningOrder,absoluteRules,fields,settings,template:currentTemplate,parse,facilityRules,withFacilityRules};if(typeof module!=='undefined')module.exports=root.ShiftConditions;
 })(typeof window!=='undefined'?window:globalThis);
