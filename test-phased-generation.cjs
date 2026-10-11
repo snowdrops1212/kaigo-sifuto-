@@ -1,0 +1,31 @@
+const assert=require('node:assert/strict');
+const E=require('./dist/engine.js');
+const month='2026-10',state=E.fresh(),record=E.month(state,month);
+record.requests['s1:5']='E';
+record.requests['s3:9']='E';
+E.generate(state,month,{phase:'night'});
+assert.equal(record.generated,true);
+assert.equal(record.generationStage,'night');
+assert(E.dailyCounts(state,month).every(row=>row.counts.D===1),'夜勤案は毎日Dを1人配置する');
+assert(E.dailyCounts(state,month).some(row=>row.counts.blank>0),'日中は未入力のまま残す');
+assert.equal(record.schedule['s1:5'],'E');
+for(const person of state.members)for(let day=1;day<=E.days(month)-2;day++)if(record.schedule[E.key(person.id,day)]==='D'){
+ assert.equal(record.schedule[E.key(person.id,day+1)],'d');
+ assert.equal(record.schedule[E.key(person.id,day+2)],'E');
+}
+const day=10,owner=state.members.find(person=>record.schedule[E.key(person.id,day)]==='D');
+record.locks[E.key(owner.id,day)]=true;
+const protectedNight=[day,day+1,day+2].map(d=>record.schedule[E.key(owner.id,d)]);
+E.generate(state,month,{phase:'day'});
+assert.equal(record.generationStage,'day');
+assert.deepEqual([day,day+1,day+2].map(d=>record.schedule[E.key(owner.id,d)]),protectedNight,'日中配置後も夜勤セットを保持する');
+assert(E.dailyCounts(state,month).every(row=>row.counts.D===1&&row.counts.C===2),'人数調整で毎日のDとCを満たす');
+assert.equal(record.schedule['s1:5'],'E');
+const missing=E.fresh();assert.throws(()=>E.generate(missing,month,{phase:'day'}),/先に「夜勤案を作成」/);
+const fixed=E.fresh(),fixedMonth=E.month(fixed,month);fixedMonth.schedule['s1:1']='B';fixedMonth.locks['s1:1']=true;
+E.generate(fixed,month,{phase:'night'});assert.equal(fixedMonth.schedule['s1:1'],'B','夜勤案でも手直しして固定した日中勤務は保つ');
+const ownerOnFirst=fixed.members.find(person=>fixedMonth.schedule[E.key(person.id,1)]==='D');
+fixedMonth.schedule[E.key(ownerOnFirst.id,1)]='';
+const broken=JSON.stringify(fixedMonth.schedule);assert.throws(()=>E.generate(fixed,month,{phase:'day'}),/夜勤案を先に調整/);
+assert.equal(JSON.stringify(fixedMonth.schedule),broken,'夜勤が不足した人数調整では既存の案を変更しない');
+console.log('PASS: night-only draft, editable blanks, D-d-E preservation, daytime staffing and stage order');

@@ -32,6 +32,13 @@ nav button:active{transform:translateY(1px)}
 nav span{display:inline-flex;align-items:center;justify-content:center;inline-size:29px;block-size:29px;flex:none;border-radius:999px;background:#d3dee2;color:#526a75;font-size:12px;font-weight:800}
 nav button.active span{background:#fff;color:var(--brand)}
 .panel{background:white;border:1px solid var(--line);border-radius:12px;padding:22px;margin-bottom:18px}
+.schedule-workflow{border-color:#b8ced7;background:#f8fbfc}
+.schedule-workflow-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:16px}
+.schedule-workflow-steps button{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:4px;min-height:88px;padding:15px 18px;text-align:left;border:2px solid #c4d7df;border-radius:11px;background:#fff}
+.schedule-workflow-steps button:hover{border-color:var(--brand);background:#edf5f7}
+.schedule-workflow-steps strong{font-size:19px;color:#103f50}
+.schedule-workflow-steps small{font-size:13px;color:var(--muted)}
+.workflow-status{margin:14px 0 0;padding:9px 12px;border-left:4px solid var(--brand);background:#eaf3f6;font-size:14px;font-weight:700}
 .planning-guide{max-width:1100px}
 .planning-guide .note p{white-space:pre-line}
 .planning-steps{display:grid;gap:12px;list-style:none;counter-reset:planning;max-width:900px;padding:0;margin:20px 0}
@@ -100,10 +107,15 @@ thead th:first-child{z-index:5;background:#f4f7f9}
 .stat span{display:block;font-size:13px;color:var(--muted)}
 .stat strong{font-size:25px}
 .stat.warn strong{color:#b36b1d}
+.stat.critical{border-color:#dc7171;background:#fff4f4}
+.stat.critical strong{color:#a6212c}
 .right{margin-left:auto}
 .note{border-left:3px solid #d9a442;background:#fffaf0;padding:11px 15px;font-size:14px;margin:12px 0}
 .issue-list{display:flex;gap:8px;flex-wrap:wrap;max-height:180px;overflow:auto}
 .issue-link{font-size:13px;text-align:left;font-weight:400;padding:7px 10px;background:#fff8f1;color:#8b521a}
+.issue-link{background:#fff0f0;border-color:#db7979;color:#a6212c;font-weight:700}
+.schedule-grid .metric-issue{background:#ffe1e1!important;color:#971b24!important;font-weight:800;box-shadow:inset 0 0 0 2px #d8434b}
+@media(max-width:720px){.schedule-workflow-steps{grid-template-columns:1fr}.schedule-workflow-steps button{min-height:68px}}
 .empty{text-align:center;padding:45px 20px;color:var(--muted)}
 .empty h2{color:var(--ink)}
 dialog{border:0;border-radius:14px;padding:25px;max-width:560px;width:calc(100% - 30px);box-shadow:0 20px 80px #102e4955;color:var(--ink)}

@@ -166,7 +166,7 @@
  function validate(state,m){const mo=month(state,m),n=days(m),issues=meetingConflicts(state,m); const add=(type,text,id,d)=>issues.push({type,text,id,d});
   for(const d of meetingDays(state,m))for(const p of state.members)if(p.role==='管理者'&&active(p,m,d)&&mo.schedule[key(p.id,d)]!=='B')add('meeting',`${p.name} ${d}日：会議日はB（日勤）が必要です`,p.id,d);
   for(let d=1;d<=n;d++)for(const c of ['C','D']){const need=staffingNeed(mo,d,c),num=state.members.filter(p=>active(p,m,d)&&mo.schedule[key(p.id,d)]===c).length,label=c==='C'?'毎日ちょうど2人':'毎日ちょうど1人';if(num<need)add('coverage',`${d}日 ${c}が${need-num}人不足（${label}）`,null,d);if(num>need)add('coverage',`${d}日 ${c}が${num-need}人超過（${num}人／${label}）`,null,d);}
-  for(const r of dailyEquivalent(state,m))if(r.tenths<70)add('equivalent',`${r.day}日：8時間換算 ${r.value}（施設基準7.0未満）`,null,r.day);
+  for(const r of dailyEquivalent(state,m)){const minimum=weekday(m,r.day)===0?60:70;if(r.tenths<minimum)add('equivalent',`${r.day}日：8時間換算 ${r.value}（${weekday(m,r.day)===0?'日曜6.0':'基準7.0'}未満）`,null,r.day);}
   for(const p of state.members){const personal=memberConditions(p);if(Array.from({length:n},(_,i)=>i+1).some(d=>active(p,m,d))){for(const error of memberConditionErrors(p,personal))add('personal',p.name+'：'+error,p.id,null);if(personal.notes.length)add('personalNote',`${p.name}：自動判定できない個別メモがあります。内容を確認してください`,p.id,null);}let run=0,hours=0,night=0,off=0; for(let d=1;d<=n;d++){const k=key(p.id,d),c=mo.schedule[k]||'',r=mo.requests[k];const before=d===1?prior(state,m,p):mo.schedule[key(p.id,d-1)];
    if(r==='F'||c==='F'){const eligibility=paidLeaveEligibility(p,iso(m,d));if(!eligibility.allowed)add('paidLeave',`${p.name} ${d}日：${eligibility.reason}`,p.id,d);}
    if(r==='W'){const desired=mo.workRequests[k];if(desired?c!==desired:!works(c))add('workRequest',`${p.name} ${d}日：出勤希望${desired?'（'+desired+' '+shifts[desired].label+'）':''}を満たしていません`,p.id,d);}
@@ -200,7 +200,13 @@
   }
   return '';
  }
- function generate(state,m){const mo=month(state,m),n=days(m),personalById=new Map(state.members.map(p=>[p.id,memberConditions(p)]));
+ function generate(state,m,options={}){const mo=month(state,m),n=days(m),phase=options.phase||'all',nightOnly=phase==='night',dayOnly=phase==='day',personalById=new Map(state.members.map(p=>[p.id,memberConditions(p)]));
+  if(!['all','night','day'].includes(phase))throw Error('シフト作成の段階が正しくありません。');
+  if(dayOnly){
+   if(!mo.generated)throw Error('先に「夜勤案を作成」を押してください。');
+   const nightIssues=validate(state,m).filter(issue=>issue.type==='sequence'||issue.type==='coverage'&&/ Dが/.test(issue.text));
+   if(nightIssues.length)throw Error('夜勤案を先に調整してください。'+nightIssues[0].text);
+  }
   const staffError=firstStaffConditionError(state,m,personalById);if(staffError)throw Error(staffError);
   for(const p of state.members)if(needsSeparateNineOff(p)&&targetMode(p)==='min'){
    const activeDays=Array.from({length:n},(_,i)=>i+1).filter(d=>active(p,m,d)).length,goal=target(p,mo,n);
@@ -225,6 +231,7 @@
   let best=null,bestRank=null,bestIssues=[];
   for(let attempt=0;attempt<60;attempt++){const sc={},protectedKeys=new Set(),reserved=new Set();
    for(const p of state.members)for(let d=1;d<=n;d++){const k=key(p.id,d);sc[k]=active(p,m,d)?'E':'';if(mo.requests[k]&&mo.requests[k]!=='W'){sc[k]=mo.requests[k];protectedKeys.add(k);}if(mo.locks[k]){sc[k]=mo.schedule[k]||'';protectedKeys.add(k);}}
+   if(dayOnly)for(const p of state.members)for(let d=1;d<=n;d++){const cell=key(p.id,d),code=mo.schedule[cell];if(code==='D'||code==='d'||code==='E'&&isNightRestE(state,m,mo.schedule,p,d)){sc[cell]=code;protectedKeys.add(cell);reserved.add(cell);}}
    for(const d of meetingDays(state,m))for(const p of state.members)if(p.role==='管理者'&&active(p,m,d)){const k=key(p.id,d);sc[k]='B';protectedKeys.add(k);}
    const withProposed=(p,changes,check)=>{const before=[];for(const[day,code]of changes)if(day>=1&&day<=n){const cell=key(p.id,day);before.push([cell,sc[cell]]);sc[cell]=code;}const result=check();for(const[cell,code]of before)sc[cell]=code;return result;};
    const keepsNineOff=(p,changes)=>!needsSeparateNineOff(p)||withProposed(p,changes,()=>separateOffCount(state,m,sc,p)>=9);
@@ -259,14 +266,23 @@
     if(can(p,d,desired)&&runOK(p,d)&&(targetMode(p)==='min'||hrs(p)+(shifts[desired]?.hours||0)<=target(p,mo,n)))assign(p,d,desired);
    }
    for(const p of state.members)if(targetMode(p)==='max'&&hrs(p)>target(p,mo,n))throw Error(`${p.name}：固定勤務・希望・会議・前月夜勤の合計が、勤務時間目安${target(p,mo,n)}時間以内を超えています。条件を調整してください。`);
-   // Match a requested day off with the E at the end of a feasible D-d-E block before ordinary nights.
-   for(let offDay=3;offDay<=n;offDay++){
-    const nightDay=offDay-2;if(state.members.some(person=>sc[key(person.id,nightDay)]==='D'))continue;
-    const pool=state.members.filter(p=>mo.requests[key(p.id,offDay)]==='E'&&canStartNight(p,nightDay)).map(p=>({p,priority:nightPriority(p,nightDay)})).sort(compareNight);
-    if(pool.length)placeNight(pool[0].p,nightDay);
+   if(!dayOnly){
+    // Match requested time off with the E at the end of a feasible D-d-E block.
+    for(let offDay=3;offDay<=n;offDay++){
+     const nightDay=offDay-2;if(state.members.some(person=>sc[key(person.id,nightDay)]==='D'))continue;
+     const pool=state.members.filter(p=>mo.requests[key(p.id,offDay)]==='E'&&canStartNight(p,nightDay)).map(p=>({p,priority:nightPriority(p,nightDay)})).sort(compareNight);
+     if(pool.length)placeNight(pool[0].p,nightDay);
+    }
+    for(let d=1;d<=n;d++){let need=staffingNeed(mo,d,'D')-state.members.filter(p=>sc[key(p.id,d)]==='D').length;
+     while(need-->0){const pool=state.members.filter(p=>canStartNight(p,d)).map(p=>({p,priority:nightPriority(p,d)})).sort(compareNight);if(!pool.length)break;placeNight(pool[0].p,d);}
+    }
    }
-   for(let d=1;d<=n;d++){let need=staffingNeed(mo,d,'D')-state.members.filter(p=>sc[key(p.id,d)]==='D').length;
-    while(need-->0){const pool=state.members.filter(p=>canStartNight(p,d)).map(p=>({p,priority:nightPriority(p,d)})).sort(compareNight);if(!pool.length)break;placeNight(pool[0].p,d);}
+   if(nightOnly){
+    const temp={...state,months:{...state.months,[m]:{...mo,schedule:sc}}},issues=validate(temp,m),nightGaps=issues.filter(x=>x.type==='coverage'&&/ Dが/.test(x.text)).length;
+    const otherScore=issues.filter(x=>['sequence','request','workRequest','personal','availability','night','meeting','bcRest'].includes(x.type)).reduce((score,x)=>score+(x.type==='request'?1000:100),0);
+    const rank=[nightGaps,otherScore],firstDifference=bestRank&&rank.findIndex((value,index)=>value!==bestRank[index]);
+    if(!bestRank||firstDifference>=0&&rank[firstDifference]<bestRank[firstDifference]){bestRank=rank;bestIssues=issues;best=Object.fromEntries(Object.entries(sc).map(([cell,code])=>[cell,code==='E'&&!protectedKeys.has(cell)&&!reserved.has(cell)?'':code]));}
+    continue;
    }
    // Scarce days first. Requests, manually fixed shifts, and night/rest blocks stay protected.
    const order=Array.from({length:n},(_,i)=>i+1).sort((a,b)=>state.members.filter(p=>can(p,a,'C')).length-state.members.filter(p=>can(p,b,'C')).length);
@@ -280,11 +296,12 @@
    const rank=[nightGaps,lateGaps,otherScore],firstDifference=bestRank&&rank.findIndex((value,index)=>value!==bestRank[index]);
    if(!bestRank||firstDifference>=0&&rank[firstDifference]<bestRank[firstDifference]){bestRank=rank;best=sc;bestIssues=issues;}
   }
-  const missing=bestIssues.filter(x=>x.type==='coverage').sort((a,b)=>(/ Dが/.test(b.text)?1:0)-(/ Dが/.test(a.text)?1:0)||a.d-b.d);
+  const missing=bestIssues.filter(x=>x.type==='coverage'&&(!nightOnly||/ Dが/.test(x.text))).sort((a,b)=>(/ Dが/.test(b.text)?1:0)-(/ Dが/.test(a.text)?1:0)||a.d-b.d);
   if(missing.length){const first=missing[0],remaining=missing.length-1;throw Error(`シフトを完成できません。${first.text}${remaining?`（ほか${remaining}件）`:''}。希望休・出勤希望・勤務限定・夜勤上限・勤務時間目安を確認してください。現在のシフトは変更していません。`);}
+  if(nightOnly){mo.schedule=best;mo.generated=true;mo.generationStage='night';return validate(state,m);}
   const hard=bestIssues.filter(issue=>['bcRest','separateOff'].includes(issue.type)||issue.type==='hours'&&needsSeparateNineOff(state.members.find(p=>p.id===issue.id)||{})&&targetMode(state.members.find(p=>p.id===issue.id)||{})==='min');
   if(hard.length)throw Error(`シフトを完成できません。${hard[0].text}。必須条件を緩めず作成を止めました。現在のシフトは変更していません。`);
-  mo.schedule=best;mo.generated=true;return validate(state,m);
+  mo.schedule=best;mo.generated=true;mo.generationStage=dayOnly?'day':'all';return validate(state,m);
  }
 
  function validCalendarDate(value){return typeof value==='string'&&/^\d{4}-(0[1-9]|1[0-2])-\d{2}$/.test(value)&&Number(value.slice(0,4))>=100&&Number(value.slice(8))>=1&&Number(value.slice(8))<=days(value.slice(0,7));}
@@ -374,6 +391,7 @@
    for(const field of memberOnlyFields)for(const id of Object.keys(v[field]))if(!ids.has(id))throw Error('保存データに登録されていない職員の個別設定があります。');
    if(v.meetings!==undefined&&(!Array.isArray(v.meetings)||v.meetings.length>31||new Set(v.meetings).size!==v.meetings.length||v.meetings.some(d=>!Number.isInteger(d)||d<1||d>days(m))))throw Error('会議日の情報が正しくありません。');
    for(const field of ['conditionPrompt','appliedConditionPrompt'])if(v[field]!==undefined&&(typeof v[field]!=='string'||v[field].length>20000))throw Error('条件の文章は20,000文字以内で保存してください。');
+   if(v.generationStage!==undefined&&!['night','day','all'].includes(v.generationStage))throw Error('シフト作成の段階が正しくありません。');
    for(const c of Object.values(v.schedule))if(c&&!shifts[c])throw Error('未対応の勤務記号です。');
    for(const c of Object.values(v.requests))if(!['E','F','W'].includes(c))throw Error('希望の情報が正しくありません。');
    for(const [cell,c] of Object.entries(v.workRequests)){const person=x.members.find(p=>cell.startsWith(p.id+':'));if(v.requests[cell]!=='W'||!workRequestShiftAllowed(person,c))throw Error('出勤希望勤務が正しくありません。');}
