@@ -53,6 +53,10 @@ onlyBMonth.schedule[E.key(onlyBStaff.id,1)]='C';onlyBMonth.locks[E.key(onlyBStaf
 for(const [name,allowed] of [['パート Gのみ','G'],['パート Bのみ','B']]){const named=withNightReserve(),person=named.members[2],record=E.month(named,month);person.name=name;person.memberPrompt='';person.target=16;person.targetMode='max';E.generate(named,month);assert(Object.entries(record.schedule).filter(([cell])=>cell.startsWith(person.id+':')).every(([,code])=>!E.works(code)||code===allowed),name+' の自動作成');}
 for(const [limit,allowed] of [['C','C'],['B・C','B,C']]){const custom=withNightReserve(),person=custom.members[2],record=E.month(custom,month);person.allowedShift=limit;person.target=24;person.targetMode='max';E.generate(custom,month);assert(Object.entries(record.schedule).filter(([cell])=>cell.startsWith(person.id+':')).every(([,code])=>!E.works(code)||allowed.split(',').includes(code)),limit+' の自動作成');}
 const unknown=E.fresh();E.month(unknown,month);unknown.members[2].memberPrompt='腰痛のため重要事項を確認';const unknownBefore=JSON.stringify(unknown);assert.throws(()=>E.generate(unknown,month),/自動判定できない重要事項/);assert.equal(JSON.stringify(unknown),unknownBefore);assert(E.validate(unknown,month).some(issue=>issue.type==='personalNote'&&issue.id==='s3'));
+const priority=E.fresh(),priorityMonth=E.month(priority,month);priority.members[2].memberPrompt='要確認の重要事項';priorityMonth.requests['s1:1']='F';
+assert.match(E.firstStaffConditionError(priority,month),/自動判定できない重要事項/);
+assert.throws(()=>E.generate(priority,month),/自動判定できない重要事項/,'職員条件を有給希望より先に確認する');
+priority.members[2].memberPrompt='';assert.throws(()=>E.generate(priority,month),/入職日が未設定/);
 const legacy=E.fresh(),lm=E.month(legacy,month);legacy.members[0].target=6;E.generate(legacy,month);
 assert(!Object.entries(lm.schedule).some(([k,c])=>k.startsWith('s1:')&&c==='G'));
 const manager=E.fresh(),mm=E.month(manager,month);manager.members[0].night=true;manager.members[0].memberPrompt='夜勤専門';mm.meetings=[5];

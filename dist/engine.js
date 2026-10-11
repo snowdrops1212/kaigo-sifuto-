@@ -151,18 +151,22 @@
   }return issues;
  }
  function onlyShiftFill(personal,remaining,minimum){if(!personal.onlyShifts.length||remaining<=0)return null;const candidates=personal.onlyShifts.filter(code=>!['C','D','d'].includes(code)&&shifts[code]?.hours>0).sort((a,b)=>shifts[b].hours-shifts[a].hours),fitting=candidates.filter(code=>shifts[code].hours<=remaining);return fitting[0]||(minimum?candidates.at(-1)||null:null);}
+ function firstStaffConditionError(state,m,personalById){const mo=month(state,m),n=days(m);
+  for(const p of state.members){
+   if(!Array.from({length:n},(_,i)=>i+1).some(d=>active(p,m,d)))continue;
+   const personal=personalById?.get(p.id)||memberConditions(p),errors=memberConditionErrors(p,personal);
+   if(errors.length)return p.name+'：'+errors[0];
+   if(personal.notes.length)return p.name+'：個別メモに自動判定できない重要事項があります。内容を確認し、勤務限定を設定してください。';
+   for(let d=1;d<=n;d++)if(active(p,m,d)&&mo.locks[key(p.id,d)]&&!memberShiftAllowed(p,mo.schedule[key(p.id,d)],personal))return p.name+' '+d+'日：職員の勤務区分と固定勤務が矛盾しています。固定を解除するか職員情報を変更してください。';
+  }
+  return '';
+ }
  function generate(state,m){const mo=month(state,m),n=days(m),personalById=new Map(state.members.map(p=>[p.id,memberConditions(p)]));
+  const staffError=firstStaffConditionError(state,m,personalById);if(staffError)throw Error(staffError);
   for(const [requestKey,code] of Object.entries(mo.requests)){
    if(code!=='F')continue;
    const [id,dayText]=requestKey.split(':'),p=state.members.find(person=>person.id===id),eligibility=paidLeaveEligibility(p,iso(m,Number(dayText)));
    if(!eligibility.allowed)throw Error((p?.name||'職員')+' '+dayText+'日：'+eligibility.reason+'。職員情報の入職日を確認してください。');
-  }
-  for(const p of state.members){
-   if(!Array.from({length:n},(_,i)=>i+1).some(d=>active(p,m,d)))continue;
-   const personal=personalById.get(p.id),errors=memberConditionErrors(p,personal);
-   if(errors.length)throw Error(p.name+'：'+errors[0]);
-   if(personal.notes.length)throw Error(p.name+'：個別メモに自動判定できない重要事項があります。内容を確認し、勤務限定を設定してください。');
-   for(let d=1;d<=n;d++)if(active(p,m,d)&&mo.locks[key(p.id,d)]&&!memberShiftAllowed(p,mo.schedule[key(p.id,d)],personal))throw Error(p.name+' '+d+'日：職員の勤務区分と固定勤務が矛盾しています。固定を解除するか職員情報を変更してください。');
   }
   const meetingErrors=meetingConflicts(state,m);if(meetingErrors.length)throw Error(meetingErrors[0].text+'。会議日または該当の条件を調整してください。');
   for(const [k,c] of Object.entries(mo.requests))if(c!=='W'&&mo.locks[k]&&mo.schedule[k]!==c)throw Error('希望休と固定勤務が重なっています。該当セルの固定を解除するか、希望休に変更してください。');
@@ -337,5 +341,5 @@
    for(const field of ['previous','targets'])if(record[field])delete record[field][id];
   }return true;
  }
- root.ShiftEngine={validCalendarDate,addCalendarMonths,paidLeavePeriod,paidLeaveEligibility,parseMemberPrompt,parseAllowedShift,memberConditions,memberConditionErrors,memberShiftAllowed,workRequestShiftAllowed,clearMemberConditionConflicts,staffingNeed,memberRemovalSummary,removeMember,meetingDays,meetingConflicts,futureShiftConflict,requiredShiftConflict,requiredNightShift,annualPaidLeave,roles,shifts,workRequestShifts,dailyCounts,equivalentCodes,equivalentTenths,equivalentStatus,dailyEquivalent,copy,days,iso,weekday,prevMonth,nextMonth,key,active,works,fresh,month,prior,target,targetMode,targetModeLabel,projectedHours,targetLimitIssue,validate,generate,checkData};if(typeof module!=='undefined')module.exports=root.ShiftEngine;
+ root.ShiftEngine={validCalendarDate,addCalendarMonths,paidLeavePeriod,paidLeaveEligibility,parseMemberPrompt,parseAllowedShift,memberConditions,memberConditionErrors,firstStaffConditionError,memberShiftAllowed,workRequestShiftAllowed,clearMemberConditionConflicts,staffingNeed,memberRemovalSummary,removeMember,meetingDays,meetingConflicts,futureShiftConflict,requiredShiftConflict,requiredNightShift,annualPaidLeave,roles,shifts,workRequestShifts,dailyCounts,equivalentCodes,equivalentTenths,equivalentStatus,dailyEquivalent,copy,days,iso,weekday,prevMonth,nextMonth,key,active,works,fresh,month,prior,target,targetMode,targetModeLabel,projectedHours,targetLimitIssue,validate,generate,checkData};if(typeof module!=='undefined')module.exports=root.ShiftEngine;
 })(typeof window!=='undefined'?window:globalThis);

@@ -39,6 +39,9 @@ nav button.active span{background:#fff;color:var(--brand)}
 .planning-step-text{font-size:17px;font-weight:650}
 .planning-steps small{color:#326a4f;font-weight:700}
 #planning-guide-notes{display:block;width:100%;max-width:900px;margin:8px 0 12px;resize:vertical}
+.staff-prompt-block{margin:20px 0;padding:18px;border:1px solid #bfd3dc;border-radius:10px;background:#f4f8fa}
+.staff-prompt-block .field{font-size:17px;font-weight:700}
+.staff-conditions-prompt,.condition-panel .staff-conditions-prompt{display:block;width:100%;min-height:320px;max-height:620px;margin:10px 0;padding:14px;border:1px solid #b9cdd5;border-radius:8px;background:#fff;color:var(--ink);font:14px/1.65 'Yu Gothic UI','Meiryo',sans-serif;resize:vertical}
 .panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
 .desc{color:var(--muted);font-size:14px;margin:4px 0 14px}
 .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}

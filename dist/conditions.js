@@ -53,9 +53,11 @@ function parse(text){
  for(const [key,label]of fields)if(!seen.has(key))errors.push(label+'がありません。');
  return {rules,errors};
 }
-const planningOrder='【シフト作成の順番（毎月適用）】\n1. 全職員の希望休・有給を先に登録し、E・Fとして確保する。\n2. パート・非常勤の職員全員の出勤希望日と希望勤務を夜勤より先に確保する。この画面では雇用区分「パート」に登録した職員が対象。勤務不可曜日・個別条件・固定勤務・時間上限と両立しない場合は警告する。\n3. D→d→Eの夜勤セットを同じ職員で組む。前月からの夜勤も引き継ぐ。\n4. 各職員の勤務時間目安と「以上／以内」を確認しながら、C・Bなど残りの勤務を埋める。条件を満たせない枠は無理に別勤務へ変えず警告する。';
+const previousPlanningOrder='【シフト作成の順番（毎月適用）】\n1. 全職員の希望休・有給を先に登録し、E・Fとして確保する。\n2. パート・非常勤の職員全員の出勤希望日と希望勤務を夜勤より先に確保する。この画面では雇用区分「パート」に登録した職員が対象。勤務不可曜日・個別条件・固定勤務・時間上限と両立しない場合は警告する。\n3. D→d→Eの夜勤セットを同じ職員で組む。前月からの夜勤も引き継ぐ。\n4. 各職員の勤務時間目安と「以上／以内」を確認しながら、C・Bなど残りの勤務を埋める。条件を満たせない枠は無理に別勤務へ変えず警告する。';
+const planningOrder='【シフト作成の順番（毎月適用）】\n1. 最初に職員一人ひとりの情報を確認する。氏名・職種・雇用区分・勤務限定・個別メモ・夜勤可否と上限・今月の勤務時間目安・有給利用可否を、職員入力欄と連動する最新の職員条件プロンプトで確認する。対象月に在籍する職員に矛盾や自動判定できない重要メモがあれば作成を止める。\n2. 全職員の希望休・有給を登録し、E・Fとして確保する。\n3. パート・非常勤の職員全員の出勤希望日と希望勤務を夜勤より先に確保する。この画面では雇用区分「パート」に登録した職員が対象。勤務不可曜日・個別条件・固定勤務・時間上限と両立しない場合は警告する。\n4. D→d→Eの夜勤セットを同じ職員で組む。前月からの夜勤も引き継ぐ。\n5. 各職員の勤務時間目安と「以上／以内」を確認しながら、C・Bなど残りの勤務を埋める。条件を満たせない枠は無理に別勤務へ変えず警告する。';
 function withPlanningOrder(text){
  const value=String(text).replace('・手直しして固定したセルは再作成でも保持する。希望と固定勤務が矛盾するときは作成を止める。','・手直しして固定したセルは再作成でも保持する。ただし希望休・有給が固定勤務と重なる場合は希望を優先し、重なる夜勤セットを空欄にして再作成する。'),heading='【シフト作成の順番（毎月適用）】';
+ if(value.includes(previousPlanningOrder)){const updated=value.replace(previousPlanningOrder,planningOrder);return updated.length<=20000?updated:value;}
  if(value.includes(heading))return value;
  const anchor='【基本方針・現在の自動作成】',updated=value.includes(anchor)?value.replace(anchor,planningOrder+'\n\n'+anchor):value+'\n\n'+planningOrder;
  return updated.length<=20000?updated:value;
