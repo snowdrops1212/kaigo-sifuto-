@@ -28,4 +28,12 @@ const ownerOnFirst=fixed.members.find(person=>fixedMonth.schedule[E.key(person.i
 fixedMonth.schedule[E.key(ownerOnFirst.id,1)]='';
 const broken=JSON.stringify(fixedMonth.schedule);assert.throws(()=>E.generate(fixed,month,{phase:'day'}),/夜勤案を先に調整/);
 assert.equal(JSON.stringify(fixedMonth.schedule),broken,'夜勤が不足した人数調整では既存の案を変更しない');
+const constrained=E.fresh(),constrainedMonth=E.month(constrained,month);
+E.generate(constrained,month,{phase:'night'});
+const firstNight=constrained.members.find(person=>constrainedMonth.schedule[E.key(person.id,1)]==='D');
+const dayWorker=constrained.members.find(person=>person.id!==firstNight.id);
+for(const person of constrained.members)if(person.id!==firstNight.id&&person.id!==dayWorker.id)constrainedMonth.requests[E.key(person.id,1)]='E';
+E.generate(constrained,month,{phase:'day'});
+assert(constrainedMonth.generated&&constrainedMonth.generationStage==='day','人数不足でも案を残す');
+assert(E.validate(constrained,month).some(issue=>issue.type==='coverage'&&issue.d===1&&/ Cが/.test(issue.text)),'不足を赤く示すため検証結果に残す');
 console.log('PASS: night-only draft, editable blanks, D-d-E preservation, daytime staffing and stage order');

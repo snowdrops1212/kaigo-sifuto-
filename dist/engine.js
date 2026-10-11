@@ -297,6 +297,7 @@
    if(!bestRank||firstDifference>=0&&rank[firstDifference]<bestRank[firstDifference]){bestRank=rank;best=sc;bestIssues=issues;}
   }
   const missing=bestIssues.filter(x=>x.type==='coverage'&&(!nightOnly||/ Dが/.test(x.text))).sort((a,b)=>(/ Dが/.test(b.text)?1:0)-(/ Dが/.test(a.text)?1:0)||a.d-b.d);
+  if(dayOnly){mo.schedule=best;mo.generated=true;mo.generationStage='day';return validate(state,m);}
   if(missing.length){const first=missing[0],remaining=missing.length-1;throw Error(`シフトを完成できません。${first.text}${remaining?`（ほか${remaining}件）`:''}。希望休・出勤希望・勤務限定・夜勤上限・勤務時間目安を確認してください。現在のシフトは変更していません。`);}
   if(nightOnly){mo.schedule=best;mo.generated=true;mo.generationStage='night';return validate(state,m);}
   const hard=bestIssues.filter(issue=>['bcRest','separateOff'].includes(issue.type)||issue.type==='hours'&&needsSeparateNineOff(state.members.find(p=>p.id===issue.id)||{})&&targetMode(state.members.find(p=>p.id===issue.id)||{})==='min');
