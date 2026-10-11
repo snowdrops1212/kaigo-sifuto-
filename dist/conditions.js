@@ -70,6 +70,12 @@ function withPlanningOrder(text){
  const anchor='【基本方針・現在の自動作成】',updated=value.includes(anchor)?value.replace(anchor,planningOrder+'\n\n'+anchor):value+'\n\n'+planningOrder;
  return updated.length<=20000?updated:value;
 }
-const currentTemplate=r=>withAbsoluteRules(withPlanningOrder(withFacilityRules(withStaffingRules(template(r)))));
-root.ShiftConditions={withStaffingRules,withPlanningOrder,withAbsoluteRules,planningOrder,absoluteRules,fields,settings,template:currentTemplate,parse,facilityRules,withFacilityRules};if(typeof module!=='undefined')module.exports=root.ShiftConditions;
+function withoutImageObservations(text){
+ const value=String(text),heading='【画像の観察結果・参考情報（自動適用しない）】',next='【未対応・担当者による確認が必要】',start=value.indexOf(heading);
+ if(start<0)return value;
+ const end=value.indexOf(next,start+heading.length);if(end<0)return value;
+ return value.slice(0,start).replace(/\s*$/,'\n\n')+value.slice(end);
+}
+const currentTemplate=r=>withoutImageObservations(withAbsoluteRules(withPlanningOrder(withFacilityRules(withStaffingRules(template(r))))));
+root.ShiftConditions={withStaffingRules,withPlanningOrder,withAbsoluteRules,withoutImageObservations,planningOrder,absoluteRules,fields,settings,template:currentTemplate,parse,facilityRules,withFacilityRules};if(typeof module!=='undefined')module.exports=root.ShiftConditions;
 })(typeof window!=='undefined'?window:globalThis);

@@ -40,6 +40,12 @@ assert(text.includes('「以上」の職員は176時間などの設定時間を�
 assert(text.includes('「以内」の職員は規定時間までに抑え'));
 assert(text.includes('I勤務者の月9日休みは自動作成・判定に反映'));
 assert.equal(P.withFacilityRules(text),text);
+assert(!text.includes('【画像の観察結果・参考情報（自動適用しない）】'));
+const oldImageSection='【画像の観察結果・参考情報（自動適用しない）】\n・夜勤：毎日Dが1人、dが1人。\n※上記は提供画像の観察結果であり、必須条件・法定基準ではない。\n\n';
+const imagePrompt=text.replace('【未対応・担当者による確認が必要】',oldImageSection+'【未対応・担当者による確認が必要】')+'\n独自の条件メモ';
+assert(!P.withoutImageObservations(imagePrompt).includes('画像の観察結果'));
+assert(P.withoutImageObservations(imagePrompt).endsWith('独自の条件メモ'));
+assert.equal(P.withoutImageObservations(P.withoutImageObservations(imagePrompt)),P.withoutImageObservations(imagePrompt));
 const custom='独自の条件メモ';assert(P.withFacilityRules(custom).startsWith(custom));assert(P.withFacilityRules(custom).includes('176時間'));
 assert.equal(P.withFacilityRules('x'.repeat(19999)).length,19999,'long existing notes must not be truncated or made unloadable');
 console.log('PASS: full-time 176-hour target mode and separate nine-day conditions are documented consistently');
