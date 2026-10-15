@@ -22,18 +22,18 @@ assert(E.memberConditionErrors({...part,role:'管理者'}).some(x=>x.includes('�
 E.generate(state,month);
 const codes=Array.from({length:E.days(month)},(_,i)=>mo.schedule[E.key(part.id,i+1)]);
 assert(codes.every(code=>['I','E','F'].includes(code)));
-assert(codes.filter(code=>code==='E').length>=9);
-assert(!E.validate(state,month).some(x=>x.type==='iOff'&&x.id===part.id));
+assert.equal(codes.filter(code=>code==='E').length,9);
+assert(!E.validate(state,month).some(x=>x.type==='holidays'&&x.id===part.id));
 
 part.target=200;part.targetMode='min';const beforeImpossible=JSON.stringify(mo.schedule);
-assert.throws(()=>E.generate(state,month),/両方必須.*シフト作成を止めました/,'I勤務200時間以上と休日9日の両立が不可能なら停止');
+assert.throws(()=>E.generate(state,month),error=>error.issues?.some(x=>x.type==='hours'&&x.text.includes('目安200時間以上')),'勤務時間200時間以上を達成できない場合は停止');
 assert.equal(JSON.stringify(mo.schedule),beforeImpossible,'不可能な再作成では保存済みのシフトを残す');
 
 for(let day=1;day<=E.days(month);day++)mo.schedule[E.key(part.id,day)]='I';
-assert(E.validate(state,month).some(x=>x.type==='iOff'&&x.id===part.id&&x.text.includes('月9日')));
+assert(E.validate(state,month).some(x=>x.type==='holidays'&&x.id===part.id&&x.text.includes('必須9日ちょうど')));
 
 const legacy=E.fresh();delete legacy.members[0].employmentType;delete legacy.members[0].usesI;delete legacy.members[0].targetMode;
 const restored=E.checkData(E.copy(legacy));
 assert.equal(restored.members[0].employmentType,'full');assert.equal(restored.members[0].usesI,false);assert.equal(restored.members[0].targetMode,'max');
 const invalidManager=E.fresh();invalidManager.members[0].employmentType='part';assert.throws(()=>E.checkData(invalidManager),/管理者は正社員/);
-console.log('PASS: I is part-time-only, uses 7-hour days, targets at least nine E holidays, validates shortages and migrates legacy staff');
+console.log('PASS: I is part-time-only, uses 7-hour days, requires exactly nine E holidays and migrates legacy staff');

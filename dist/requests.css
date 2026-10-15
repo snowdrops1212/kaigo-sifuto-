@@ -64,8 +64,9 @@ body.schedule-expanded #schedule-viewport{flex:1;min-height:0;height:auto;max-he
  #schedule-panel,body.schedule-expanded #schedule-panel{position:static!important;inset:auto!important;display:block!important;overflow:visible!important;border:0!important;border-radius:0!important;padding:0!important;margin:0!important}
  #schedule-panel>.panel-head{display:block!important;margin:0 0 2mm!important}
  #schedule-panel>.panel-head h2{font-size:14pt!important;margin:0!important}
- #schedule-panel>.panel-head .desc,.schedule-actions,.schedule-view-toolbar,#schedule-panel>.equivalent-note,#schedule-panel>.subtle{display:none!important}
- #schedule-panel>.legend{font-size:7.5pt!important;gap:2.4mm!important;margin:0 0 2.5mm!important}
+ #schedule-panel>.panel-head .desc,.schedule-actions,.schedule-view-toolbar,#schedule-panel>.schedule-workflow,#schedule-panel>.equivalent-note,#schedule-panel>.subtle{display:none!important}
+  #schedule-panel>.generation-failure,#schedule-panel>.generation-trial{display:none!important}
+  #schedule-panel>.legend{font-size:7.5pt!important;gap:2.4mm!important;margin:0 0 2.5mm!important}
  #schedule-panel>.legend .chip{font-size:7.5pt!important;padding:.45mm 1.2mm!important}
  #schedule-viewport{display:block!important;width:100%!important;min-height:0!important;overflow:visible!important;height:auto!important;max-height:none!important;border:1px solid #9aa7ad!important;border-radius:0!important}
  #schedule-canvas{zoom:1!important;width:100%!important;padding-inline:0!important;transform:none!important;box-sizing:border-box!important}
@@ -126,3 +127,4 @@ body.schedule-expanded #schedule-viewport{flex:1;min-height:0;height:auto;max-he
  .schedule-view-toolbar:after{content:'職員名・職種は固定されています。拡大表示では表の上で2本指を左右に動かせます。';flex-basis:100%;color:#173744;font-size:14px;font-weight:700}
 }
 @media screen and (max-width:800px){.is-zoom .schedule-grid th:first-child,.is-zoom .schedule-grid td:first-child{width:300px;min-width:300px;max-width:300px}.is-zoom .schedule-name-col{width:300px}}
+.schedule-grid td.schedule-off-short{color:#b21f2d!important;background:#fff0f1!important;font-weight:900!important}

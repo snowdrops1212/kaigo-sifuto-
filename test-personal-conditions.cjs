@@ -29,22 +29,22 @@ assert.equal(E.parseMemberPrompt().notes.length,0);assert(E.parseMemberPrompt(nu
 assert(E.parseMemberPrompt('あ'.repeat(2001)).errors.length);
 const month='2026-10',s=E.fresh(),m=E.month(s,month),p=s.members[2];
 for(const member of s.members)member.night=false;
-for(const member of s.members.slice(3,7)){member.night=true;member.nightMax=10;}
-p.start='2025-01-01';p.night=true;p.nightMax=15;p.memberPrompt='夜勤専門です';
+for(const member of s.members.slice(3,7))member.night=true;
+p.start='2025-01-01';p.night=true;p.memberPrompt='夜勤専門です';
 m.requests['s3:5']='F';m.requests['s3:10']='E';
 E.generate(s,month);
 const codes=Array.from({length:E.days(month)},(_,i)=>m.schedule[E.key(p.id,i+1)]);
-assert(codes.includes('D'));assert(codes.every(c=>['D','d','E','F'].includes(c)));
+assert(codes.includes('D'));assert(codes.every(c=>['D','d','E','F',''].includes(c)),'9日を超えた休日Eは空欄になっても、勤務制限外の記号は入れない');assert.equal(E.holidayCount(month,m.schedule,p),9);
 assert.equal(m.schedule['s3:5'],'F');assert.equal(m.schedule['s3:10'],'E');assert(!E.validate(s,month).some(x=>x.type==='personal'));
 m.schedule['s3:4']='B';assert(E.validate(s,month).some(x=>x.type==='personal'&&x.d===4));m.locks['s3:4']=true;
 const before=JSON.stringify(s);assert.throws(()=>E.generate(s,month),/勤務区分と固定勤務/);assert.equal(JSON.stringify(s),before);
 for(const hours of [6,14]){
- const g=E.fresh(),gm=E.month(g,month);g.members[0].memberPrompt='G勤務：可能';g.members[0].target=hours;gm.requests['s1:1']='E';E.generate(g,month);
- const values=Object.entries(gm.schedule).filter(([k])=>k.startsWith('s1:')).map(([,c])=>c);
- assert.equal(values.filter(c=>c==='G').length,1);assert.equal(values.reduce((n,c)=>n+(E.shifts[c]?.hours||0),0),hours);assert.equal(gm.schedule['s1:1'],'E');
- assert.equal(E.dailyEquivalent(g,month).find(r=>gm.schedule[E.key('s1',r.day)]==='G').tenths%10,7);
+ const g=E.fresh(),gm=E.month(g,month);g.members[2].employmentType='part';g.members[2].night=false;g.members[2].memberPrompt='G勤務：可能';g.members[2].target=hours;gm.requests['s3:1']='E';E.generate(g,month);
+ const values=Object.entries(gm.schedule).filter(([k])=>k.startsWith('s3:')).map(([,c])=>c);
+ assert.equal(values.filter(c=>c==='G').length,1);assert.equal(values.reduce((n,c)=>n+(E.shifts[c]?.hours||0),0),hours);assert.equal(gm.schedule['s3:1'],'E');
+ assert.equal(E.dailyEquivalent(g,month).find(r=>gm.schedule[E.key('s3',r.day)]==='G').tenths%10,7);
 }
-const withNightReserve=()=>{const roster=E.fresh();for(const member of roster.members.slice(3,7)){member.nightMax=10;member.employmentType='part';}return roster;};
+const withNightReserve=()=>{const roster=E.fresh();for(const member of roster.members.slice(2,7))member.employmentType='part';return roster;};
 const onlyG=withNightReserve(),onlyGMonth=E.month(onlyG,month),onlyGStaff=onlyG.members[2];onlyGStaff.memberPrompt='Gのみ';onlyGStaff.target=18;onlyGStaff.targetMode='max';E.generate(onlyG,month);
 const onlyGCodes=Object.entries(onlyGMonth.schedule).filter(([key])=>key.startsWith(onlyGStaff.id+':')).map(([,code])=>code);assert.equal(onlyGCodes.filter(code=>code==='G').length,3);assert(onlyGCodes.every(code=>['G','E','F',''].includes(code)));assert(!E.validate(onlyG,month).some(issue=>issue.type==='personal'&&issue.id===onlyGStaff.id));
 onlyGMonth.schedule[E.key(onlyGStaff.id,1)]='B';assert(E.validate(onlyG,month).some(issue=>issue.type==='personal'&&issue.id===onlyGStaff.id&&issue.d===1));
