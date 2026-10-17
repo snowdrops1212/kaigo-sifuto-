@@ -13,6 +13,7 @@ const partIHoursRule='・I勤務パートは1日7時間とし、31日の月は22
 const nightRoleRule='・管理者と看護職員（看護師）は夜勤D・dを担当しない。夜勤設定が「可能」でも割り当てず、保存済みの該当勤務は警告する。';
 const legacyNightOnlyPartRule='・夜勤のみのパートは月3回のD→d→Eを基本とする。4回目は必要な場合のみ案として提案し、本人への確認が必要な「要確認」を表示する。月5回以上は設定しない。';
 const nightOnlyPartRule='・夜勤のみのパートは月3回のD→d→Eを基本とする。4回目は必要な場合のみ案として提案し、本人への確認が必要な「要確認」を表示する。通常の時間目安が52時間以内なら4回目の提案時は64時間以内を適用する。52時間より低い個別上限は引き上げない。月5回以上は設定しない。';
+const bcNightPreferenceRule='・B・Cが3日続いた人の翌日は原則E（休日）にする。D（夜勤入り）は他の候補が難しい場合に限り許可し、できるだけ避けて要確認の警告を出す。';
 const facilityStatus='職員ごとの勤務時間目安は「以上／以内」で判定する。正社員は30日の月に168時間以上、31日の月に176時間以上を必須とし、超過勤務も可能。I勤務パートは31日の月154時間以内、30日の月147時間以内を必須とし、ちょうどは可。正社員とI勤務パートは、D→d→Eの最後のEも含めて月9日ちょうどの休日Eを必須とする。9日以外は赤色で警告する。③人数調整では未達が残っても可能な勤務を途中案としてシフト表へ反映し、完成扱いにはしない。';
 const facilityRules='【施設から追加された条件】\n'+fullTimeHoursRule+'\n'+partIHoursRule+'\n'+nightRoleRule+'\n'+nightOnlyPartRule+'\n・正社員とI勤務パートは、夜勤のD → d → Eの最後のEも含めて、月9日ちょうどのE（休日）を取る。\n・9日以外なら休日数を赤色で警告する。③人数調整では未達が残る途中案も表に入れ、完成扱いにはしない。\n・有給Fは通常の休日Eとは別枠とする。\n【追加条件の適用状況】\n'+facilityStatus;
 function withPartIHours(text){const original=String(text),heading='【施設から追加された条件】';if(original.includes(partIHoursRule)||!original.includes(heading))return original;const updated=original.replace(heading,heading+'\n'+partIHoursRule);return updated.length<=20000?updated:original;}
@@ -118,7 +119,7 @@ const oldCurrentPlanningOrder='【シフト作成の順番（毎月適用）】\
 const priorPlanningOrder=oldCurrentPlanningOrder.replace('4. D→d→Eの夜勤セットを同じ職員で組む。前月からの夜勤も引き継ぐ。','4. 毎日Dをちょうど1人にし、その同じ職員に翌日d・翌々日Eを3日連続で確保する。途中交代はしない。月をまたいでも引き継ぎ、3日間のどこかが勤務条件・希望・固定予定と両立しなければ、この職員に夜勤セットを割り当てない。');
 const previousNightRestPriority='希望休をD→d→Eの最後のEにできる場合は先にその3日間を確保する。';
 const nightRestPriority=previousNightRestPriority+'希望休のEと夜勤セット最後のEは同じ日でよく、休日は1日として数える。';
-const planningOrder=priorPlanningOrder.replace('夜勤可否と上限','夜勤可否').replace('4. 毎日Dをちょうど1人にし','4. '+nightRestPriority+'夜勤専門者を除き、夜勤回数の偏りを抑え、前回の夜勤から長く空いた人を優先する。連続する夜勤セットはなるべく避けるが、必要な場合は許可する。毎日Dをちょうど1人にし').replace('5. 各職員の勤務時間目安','5. B・Cが3日続いた人の翌日はEにする。正社員とI勤務パートは夜勤セットのEを含めて月9日ちょうどのEを必須とする。9日以外は赤色で警告し、勤務時間の下限（例：168時間以上）も守る。\n6. 各職員の勤務時間目安');
+const planningOrder=priorPlanningOrder.replace('夜勤可否と上限','夜勤可否').replace('4. 毎日Dをちょうど1人にし','4. '+nightRestPriority+'夜勤専門者を除き、夜勤回数の偏りを抑え、前回の夜勤から長く空いた人を優先する。連続する夜勤セットはなるべく避けるが、必要な場合は許可する。毎日Dをちょうど1人にし').replace('5. 各職員の勤務時間目安','5. B・Cが3日続いた人の翌日は原則Eにする。Dは他の候補が難しい場合のみ許可し、要確認として警告する。正社員とI勤務パートは夜勤セットのEを含めて月9日ちょうどのEを必須とする。9日以外は赤色で警告し、勤務時間の下限（例：168時間以上）も守る。\n6. 各職員の勤務時間目安');
  const monthlyPlanningOrder=withFullTimeHours(planningOrder);
   const previousNightRestRule='・3日間のいずれかに在籍外、勤務不可、希望休・有給・出勤希望との衝突、固定予定などがあり成立しない場合、その職員のD自体を割り当てない。3日分を無理に分割しない。';
   const nightRestRule='・希望休のEとD→d→Eの最後のEは重ねてよく、その日は休日1日として数える。3日間のいずれかが在籍外・勤務不可・固定勤務との矛盾や、希望休・有給・出勤希望との不一致で成立しない場合、その職員のD自体を割り当てない。3日分を無理に分割しない。';
@@ -141,9 +142,11 @@ function withoutImageObservations(text){
  return value.slice(0,start).replace(/\s*$/,'\n\n')+value.slice(end);
 }
  function withActiveAdditionalHeading(text){return String(text).replaceAll('【追加の条件メモ（自動適用しない）】','【追加の条件（自動適用する）】');}
-  const customTimeRule='・セルで時間指定勤務を設定する場合は、開始・終了時刻と実働時間を入力する。入力した実働時間を月間勤務時間と8時間換算に反映する。選んだ勤務区分の人数にも算入し、手直ししたセルは固定する。日付をまたぐ夜勤は時間指定ではなくD→d→Eを使う。';
+  const customTimeRule='・セルで時間指定勤務を設定する場合は、開始・終了時刻と実働時間を30分単位で入力する。入力した実働時間を月間勤務時間と8時間換算に反映する。選んだ勤務区分の人数にも算入し、手直ししたセルは固定する。日付をまたぐ夜勤は時間指定ではなくD→d→Eを使う。';
+  const oldCustomTimeRule=customTimeRule.replace('30分単位で入力する','入力する');
   const previousCustomTimeRule='・セルで時間指定勤務を設定する場合は、開始・終了時刻から休憩時間を引いた実働時間を月間勤務時間と8時間換算に反映する。選んだ勤務区分の人数にも算入し、手直ししたセルは固定する。日付をまたぐ夜勤は時間指定ではなくD→d→Eを使う。';
-  function withCustomTimeRule(text){const original=String(text),heading='【施設から追加された条件】';if(original.includes(previousCustomTimeRule))return original.replace(previousCustomTimeRule,customTimeRule);if(original.includes(customTimeRule)||!original.includes(heading))return original;const updated=original.replace(heading,heading+'\n'+customTimeRule);return updated.length<=20000?updated:original;}
- const currentTemplate=r=>withCustomTimeRule(withActiveAdditionalHeading(withoutImageObservations(withFullTimeHours(withAbsoluteRules(withPlanningOrder(withNightOnlyPartRule(withNightRoleRule(withFacilityRules(withStaffingRules(template(r)))))))))));
- root.ShiftConditions={withStaffingRules,withPlanningOrder,withAbsoluteRules,withoutImageObservations,withNineHolidayRule,withFullTimeHours,planningOrder:monthlyPlanningOrder,absoluteRules,fields,settings,template:currentTemplate,parse,facilityRules,withFacilityRules:text=>withCustomTimeRule(withActiveAdditionalHeading(withFullTimeHours(withNightOnlyPartRule(withNightRoleRule(withFacilityRules(text))))))};if(typeof module!=='undefined')module.exports=root.ShiftConditions;
+  function withCustomTimeRule(text){const original=String(text),heading='【施設から追加された条件】';if(original.includes(previousCustomTimeRule))return original.replace(previousCustomTimeRule,customTimeRule);if(original.includes(oldCustomTimeRule))return original.replace(oldCustomTimeRule,customTimeRule);if(original.includes(customTimeRule)||!original.includes(heading))return original;const updated=original.replace(heading,heading+'\n'+customTimeRule);return updated.length<=20000?updated:original;}
+  function withBcNightPreference(text){let value=String(text).replaceAll('B・Cが3日続いた人の翌日はEにする。','B・Cが3日続いた人の翌日は原則Eにする。Dは他の候補が難しい場合のみ許可し、要確認として警告する。').replaceAll('B・Cの3日連続後のEを満たせない場合は作成を止める','B・Cの3日連続後はEを優先し、例外のDには警告する').replaceAll('C・Dの人数、B・Cの3日連続後のE、休日9日の未達は警告し','C・Dの人数と休日9日の未達、およびB・Cの3日連続後の例外的なDは警告し');if(value.includes(bcNightPreferenceRule)||!value.includes('【施設から追加された条件】'))return value;const updated=value.replace('【施設から追加された条件】','【施設から追加された条件】\n'+bcNightPreferenceRule);return updated.length<=20000?updated:value;}
+ const currentTemplate=r=>withBcNightPreference(withCustomTimeRule(withActiveAdditionalHeading(withoutImageObservations(withFullTimeHours(withAbsoluteRules(withPlanningOrder(withNightOnlyPartRule(withNightRoleRule(withFacilityRules(withStaffingRules(template(r))))))))))));
+ root.ShiftConditions={withStaffingRules,withPlanningOrder,withAbsoluteRules,withoutImageObservations,withNineHolidayRule,withFullTimeHours,planningOrder:monthlyPlanningOrder,absoluteRules,fields,settings,template:currentTemplate,parse,facilityRules,withFacilityRules:text=>withBcNightPreference(withCustomTimeRule(withActiveAdditionalHeading(withFullTimeHours(withNightOnlyPartRule(withNightRoleRule(withFacilityRules(text)))))))};if(typeof module!=='undefined')module.exports=root.ShiftConditions;
 })(typeof window!=='undefined'?window:globalThis);

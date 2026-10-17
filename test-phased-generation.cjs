@@ -16,7 +16,7 @@ for(const person of state.members)for(let day=1;day<=E.days(month)-2;day++)if(re
 const day=10,owner=state.members.find(person=>record.schedule[E.key(person.id,day)]==='D');
 record.locks[E.key(owner.id,day)]=true;
 const protectedNight=[day,day+1,day+2].map(d=>record.schedule[E.key(owner.id,d)]);
-E.generate(state,month,{phase:'day'});
+E.generate(state,month,{phase:'day',allowIncomplete:true});
 assert.equal(record.generationStage,'day');
 assert.deepEqual([day,day+1,day+2].map(d=>record.schedule[E.key(owner.id,d)]),protectedNight,'日中配置後も夜勤セットを保持する');
 assert(E.dailyCounts(state,month).every(row=>row.counts.D===1&&row.counts.C===2),'人数調整で毎日のDとCを満たす');

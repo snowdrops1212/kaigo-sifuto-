@@ -46,4 +46,7 @@ cappedRecord.customTimes['s3:1'].actualMinutes=480;assert.match(E.targetLimitIss
 
 const removed=E.copy(state);E.removeMember(removed,'s3');assert.equal(Object.keys(removed.months[month].customTimes).length,0);
 const legacy=E.fresh();delete E.month(legacy,month).customTimes;assert.deepEqual(E.checkData(E.copy(legacy)),E.checkData(legacy));
+const earlierManual=E.fresh(),earlierRecord=E.month(earlierManual,month);
+earlierRecord.schedule['s3:1']='T';earlierRecord.customTimes['s3:1']={code:'T',start:'09:10',end:'12:00',actualMinutes:150};earlierRecord.locks['s3:1']=true;
+assert.deepEqual(E.checkData(E.copy(earlierManual)),earlierManual,'過去に保存した30分刻み以外の時間指定も読み込み時には消さない');
 console.log('PASS: custom times calculate net hours, monthly totals, daily equivalents, C/T counts, caps, JSON validation, deletion and legacy data');

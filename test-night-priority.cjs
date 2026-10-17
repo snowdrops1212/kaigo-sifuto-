@@ -18,11 +18,27 @@ for(const p of s.members.filter(person=>person.employmentType==='full')){
  assert.equal(E.holidayCount(month,m.schedule,p),9,p.name+' の夜勤後E込み休日は9日');
 }
 const before=JSON.stringify(m.schedule);m.locks[E.key(manager.id,4)]=true;m.schedule[E.key(manager.id,4)]='B';
-assert.throws(()=>E.generate(s,month),/B・Cが3日続いた翌日はE/,'固定勤務が休養規則と矛盾すれば停止');
+assert.throws(()=>E.generate(s,month),/B・Cが3日続いた翌日は原則E/,'固定Bは休養規則と矛盾するため停止');
 assert.equal(m.schedule[E.key(manager.id,4)],'B','停止時は保存済みの勤務を変更しない');
+const draft=E.fresh(),draftMonth=E.month(draft,month),restPerson=draft.members[8];
+for(const day of [1,2,3]){draftMonth.schedule[E.key(restPerson.id,day)]=day===2?'C':'B';draftMonth.locks[E.key(restPerson.id,day)]=true;}
+E.generate(draft,month,{phase:'night'});
+assert.equal(draftMonth.schedule[E.key(restPerson.id,4)],'E','夜勤案でもB・Cが3日続いた後のEを空欄化しない');
+assert(!E.validate(draft,month).some(issue=>issue.type==='bcRest'&&issue.id===restPerson.id&&issue.d===4));
+const forced=E.fresh(),forcedMonth=E.month(forced,month),forcedPerson=forced.members[2];
+for(const day of [1,2,3]){forcedMonth.schedule[E.key(forcedPerson.id,day)]=day===2?'C':'B';forcedMonth.locks[E.key(forcedPerson.id,day)]=true;}
+for(const person of forced.members)if(person.id!==forcedPerson.id)person.night=false;
+E.generate(forced,month,{phase:'night'});
+assert.equal(forcedMonth.schedule[E.key(forcedPerson.id,4)],'D','他の夜勤候補がいなければB・Cの3日後もDを許可する');
+assert(E.validate(forced,month).some(issue=>issue.type==='bcNightLoad'&&issue.id===forcedPerson.id&&issue.d===4),'例外のDは警告する');
+const preferred=E.fresh(),preferredMonth=E.month(preferred,month),tired=preferred.members[2];
+for(const day of [1,2,3]){preferredMonth.schedule[E.key(tired.id,day)]=day===2?'C':'B';preferredMonth.locks[E.key(tired.id,day)]=true;}
+E.generate(preferred,month,{phase:'night'});
+assert.notEqual(preferredMonth.schedule[E.key(tired.id,4)],'D','他に担当者がいればB・Cの3日後のDを避ける');
 const impossible=E.fresh(),im=E.month(impossible,'2026-11');impossible.members[2].targetMode='min';impossible.members[2].weekdays=[1];
 assert.throws(()=>E.generate(impossible,'2026-11'),error=>error.issues?.some(issue=>issue.type==='holidays'||issue.type==='hours'),'30日の月の168時間以上と勤務可能曜日が両立しない案は止める');
 assert(P.planningOrder.includes('前回の夜勤から長く空いた人'));
 assert(P.planningOrder.includes('夜勤セットのEを含めて月9日ちょうど'));
 assert(P.planningOrder.includes('希望休のEと夜勤セット最後のEは同じ日でよく'));
-console.log('PASS: requested E night alignment, three-day B/C rest, mandatory nine off and planning prompt');
+assert(P.planningOrder.includes('Dは他の候補が難しい場合のみ許可'));
+console.log('PASS: requested E night alignment, B/C rest preserved in night drafts, D exception and warning, mandatory nine off and planning prompt');

@@ -127,6 +127,7 @@ assert.equal(P.parse(upgraded).rules.B,0);assert.equal(P.parse(upgraded).rules.C
 assert(upgraded.endsWith('Bの最低人数：5人（独自メモ）'));assert.equal(P.withStaffingRules(upgraded),upgraded);
 assert.equal(P.settings({B:4,C:5,D:2,maxRun:6,off:8}),'Bの人数：制限なし\nCの人数：2人\nDの人数：1人\n連勤警告の目安：6日\n休日の目安：8日');
 assert.equal(P.parse(P.withStaffingRules(text.replace('Dの人数：1人','Dの最低人数：3人'))).rules.D,1);
- assert(text.includes('セルで時間指定勤務を設定する場合は、開始・終了時刻と実働時間を入力する'));
+ assert(text.includes('セルで時間指定勤務を設定する場合は、開始・終了時刻と実働時間を30分単位で入力する'));
+ assert(text.includes('B・Cが3日続いた人の翌日は原則E（休日）にする'));
 assert.equal((P.withFacilityRules(text).match(/セルで時間指定勤務を設定する場合は/g)||[]).length,1);
 console.log('PASS: fixed B/C/D policy, strict invalid/duplicate settings, legacy prompt migration and custom note preservation');
