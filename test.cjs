@@ -8,7 +8,7 @@ mo.schedule['s1:3']='C';mo.locks['s1:3']=true;
 mo.previous.s4='D';
 s.members[10].end='2026-10-10';
 s.members[11].weekdays=[1,2,3,4,5];
-let issues=E.generate(s,m);
+let issues=E.generate(s,m,{phase:'night',allowIncomplete:true});
 assert.equal(mo.schedule['s3:5'],'E');assert.equal(mo.schedule['s3:12'],'F');
 assert.equal(mo.schedule['s1:3'],'C');assert.equal(mo.schedule['s4:1'],'d');assert.equal(mo.schedule['s4:2'],'E');
 assert.equal(issues.filter(x=>['request','sequence','availability','inactive','run','night'].includes(x.type)).length,0,JSON.stringify(issues));

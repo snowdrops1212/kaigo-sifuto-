@@ -58,6 +58,21 @@ assert(constrainedError.issues.some(issue=>issue.type==='coverage'&&issue.d===1&
 assert(constrainedError.draft,'未確定案は確認用に残す');
 assert.equal(JSON.stringify(constrainedMonth.schedule),beforeConstrained,'失敗時は現在のシフトを変更しない');
 assert.equal(constrainedMonth.generationStage,beforeStage,'失敗時は夜勤段階のままにする');
+const incompleteIssues=E.generate(constrained,month,{phase:'day',allowIncomplete:true});
+assert.equal(constrainedMonth.generationStage,'day','不足があっても人数調整案を直接シフト表へ反映する');
+assert.notEqual(JSON.stringify(constrainedMonth.schedule),beforeConstrained,'調整可能な勤務を表に入れる');
+assert(incompleteIssues.some(issue=>issue.type==='coverage'&&issue.d===1&&/ Cが/.test(issue.text)),'未達の人数は反映後も警告として返す');
+assert.equal(constrainedMonth.schedule[E.key(firstNight.id,1)],'D','夜勤案を保持する');
+const fiveRequests=E.fresh(),fiveMonth=E.month(fiveRequests,month),nightOnlyPart=fiveRequests.members[2];
+nightOnlyPart.name='パート 夜勤のみ';nightOnlyPart.employmentType='part';nightOnlyPart.memberPrompt='夜勤のみ';nightOnlyPart.target=52;nightOnlyPart.targetMode='max';
+for(const day of [1,8,15,22,29]){const cell=E.key(nightOnlyPart.id,day);fiveMonth.requests[cell]='W';fiveMonth.workRequests[cell]='D';}
+const fiveNightIssues=E.generate(fiveRequests,month,{phase:'night'});
+assert(fiveNightIssues.some(issue=>issue.type==='workRequest'&&issue.d===29),'5回目の出勤希望は夜勤案の警告に残る');
+const fiveDayIssues=E.generate(fiveRequests,month,{phase:'day',allowIncomplete:true});
+assert.equal(fiveMonth.generationStage,'day','29日の希望を満たせなくても③の案を直接反映する');
+assert(fiveDayIssues.some(issue=>issue.type==='workRequest'&&issue.d===29),'満たせない希望は反映後も警告に残る');
+assert(Object.values(fiveMonth.schedule).some(code=>code==='B'||code==='C'),'ほかの日中勤務は表に入る');
+assert.equal(Object.entries(fiveMonth.schedule).filter(([cell,code])=>cell.startsWith(nightOnlyPart.id+':')&&code==='D').length,4,'夜勤のみパートに5回目のDは入れない');
 const partial=E.fresh(),partialMonth=E.month(partial,month);
 for(const person of partial.members)if(person.night)for(const day of [14,19])partialMonth.requests[E.key(person.id,day)]='E';
 partialMonth.schedule['s1:2']='B';partialMonth.locks['s1:2']=true;
@@ -72,6 +87,14 @@ for(const person of partial.members)for(let day=1;day<=E.days(month)-2;day++)if(
  assert.equal(partialMonth.schedule[E.key(person.id,day+1)],'d');
  assert.equal(partialMonth.schedule[E.key(person.id,day+2)],'E');
 }
+const partialNightCount=E.dailyCounts(partial,month).filter(row=>row.counts.D===1).length;
+const partialDayIssues=E.generate(partial,month,{phase:'day',allowIncomplete:true});
+assert.equal(partialMonth.generationStage,'day','D未配置日があっても③で可能な日中勤務を反映する');
+assert.equal(E.dailyCounts(partial,month).filter(row=>row.counts.D===1).length,partialNightCount,'既存の夜勤案を変えない');
+assert.equal(partialMonth.schedule['s1:2'],'B','手直し済み勤務を守る');
+assert.equal(partialMonth.schedule['s3:14'],'E','希望休を守る');
+assert(partialDayIssues.some(issue=>issue.type==='coverage'&&/ Dが/.test(issue.text)),'D未配置日は警告に残す');
+assert(Object.values(partialMonth.schedule).some(code=>code==='C'),'Cなど可能な日中勤務を表へ入れる');
 const conflictingWishes=E.fresh(),conflictingMonth=E.month(conflictingWishes,month);
 for(const id of ['s3','s4']){conflictingMonth.requests[E.key(id,15)]='W';conflictingMonth.workRequests[E.key(id,15)]='D';}
 const wishIssues=E.generate(conflictingWishes,month,{phase:'night'});
@@ -133,4 +156,15 @@ try{
   return true;
  });
 }finally{Math.random=originalRandom;}
+const consecutive=E.fresh(),consecutiveMonth=E.month(consecutive,month),consecutivePerson=consecutive.members.find(person=>person.id==='s3');
+for(const [day,code] of [[1,'G'],[2,'G'],[3,'G'],[4,'G'],[5,'D'],[6,'d'],[7,'E']]){
+ const cell=E.key(consecutivePerson.id,day);consecutiveMonth.schedule[cell]=code;consecutiveMonth.locks[cell]=true;
+}
+const nightRunIssues=E.generate(consecutive,month,{phase:'night'});
+assert.equal(consecutiveMonth.generationStage,'night','6連勤を含む夜勤案も反映する');
+assert(nightRunIssues.some(issue=>issue.type==='run'&&issue.d===6),'②では6連勤を警告する');
+const dayRunIssues=E.generate(consecutive,month,{phase:'day',allowIncomplete:true});
+assert.equal(consecutiveMonth.generationStage,'day','連勤警告だけを理由に③を止めない');
+assert(dayRunIssues.some(issue=>issue.type==='run'&&issue.d===6),'③でも連勤警告を保持する');
+assert.deepEqual([5,6,7].map(day=>consecutiveMonth.schedule[E.key(consecutivePerson.id,day)]),['D','d','E'],'連勤警告で夜勤セットを消さない');
 console.log('PASS: night-only draft, editable blanks, D-d-E preservation, daytime staffing and stage order');

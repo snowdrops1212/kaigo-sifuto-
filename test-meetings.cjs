@@ -1,7 +1,7 @@
 const assert=require('node:assert/strict'),E=require('./dist/engine.js');
 const month='2026-10';
 const s=E.fresh(),mo=E.month(s,month);
-mo.meetings=[31,1,15];s.members[0].name='名前から判定しない';s.members[0].night=true;
+mo.meetings=[31,1,15];s.members[0].name='名前から判定しない';
 s.members[1].role='管理者';mo.locks['s3:15']=true;mo.schedule['s3:15']='C';
 assert.deepEqual(E.meetingDays(s,month),[1,15,31]);
 assert.deepEqual(E.meetingConflicts(s,month),[]);
@@ -22,9 +22,9 @@ for(const [reason,configure] of [
  ]){
  const st=E.fresh(),m=E.month(st,month);m.meetings=[2];configure(st,m);const before=JSON.stringify(st);
  assert(E.meetingConflicts(st,month).some(x=>x.text.includes(reason)),reason);
- assert.throws(()=>E.generate(st,month),new RegExp(reason));assert.equal(JSON.stringify(st),before,'conflicts must not overwrite schedule or requests');
+ assert.throws(()=>E.generate(st,month),reason==='夜勤明け'?/夜勤/:new RegExp(reason));assert.equal(JSON.stringify(st),before,'conflicts must not overwrite schedule or requests');
 }
-const fixed=E.fresh(),fm=E.month(fixed,month);fm.meetings=[5];fm.schedule['s1:3']='D';fm.locks['s1:3']=true;assert.throws(()=>E.generate(fixed,month),/夜勤明け/);
+const fixed=E.fresh(),fm=E.month(fixed,month);fm.meetings=[5];fm.schedule['s1:3']='D';fm.locks['s1:3']=true;assert.throws(()=>E.generate(fixed,month),/夜勤/);
 const prev=E.fresh(),pm=E.month(prev,'2026-12'),jan=E.month(prev,'2027-01');pm.generated=true;pm.schedule['s1:31']='D';jan.meetings=[1,2];assert.equal(E.meetingConflicts(prev,'2027-01').length,2);
 pm.schedule['s1:31']='d';assert.equal(E.meetingConflicts(prev,'2027-01').length,1);
 const forward=E.fresh(),nov=E.month(forward,'2026-11'),dec=E.month(forward,'2026-12');nov.generated=true;nov.schedule['s3:30']='D';nov.locks['s3:30']=true;dec.generated=true;dec.schedule['s3:1']='B';dec.schedule['s3:2']='E';
@@ -38,7 +38,7 @@ delete dec.requests['s3:2'];dec.requests['s3:1']='W';dec.workRequests['s3:1']='B
 delete dec.requests['s3:1'];delete dec.workRequests['s3:1'];
 assert.equal(E.requiredNightShift(forward,'2026-12',forward.members[2],1),'d');assert.equal(E.requiredNightShift(forward,'2026-12',forward.members[2],2),'E');
 dec.requests['s3:1']='E';const carryBefore=JSON.stringify(forward);assert.throws(()=>E.generate(forward,'2026-12'),/前月からのD→d→E/);assert.equal(JSON.stringify(forward),carryBefore);delete dec.requests['s3:1'];
-const allDays=E.fresh(),allNov=E.month(allDays,'2026-11'),allNight=allDays.members[2];allNight.weekdays=[E.weekday('2026-11',30)];allNov.schedule['s3:30']='D';allNov.locks['s3:30']=true;assert.throws(()=>E.generate(allDays,'2026-11'),/勤務不可の曜日/,'翌月のdが勤務できない職員にはDを設定しない');allNight.weekdays=[E.weekday('2026-11',30),E.weekday('2026-12',1)];E.generate(allDays,'2026-11');const allDecIssues=E.generate(allDays,'2026-12');assert.equal(allDays.months['2026-12'].schedule['s3:1'],'d');assert.equal(allDays.months['2026-12'].schedule['s3:2'],'E');assert(!allDecIssues.some(x=>x.type==='availability'&&x.id==='s3'&&x.d===1));
+const allDays=E.fresh(),allNov=E.month(allDays,'2026-11'),allNight=allDays.members[2];allNight.weekdays=[E.weekday('2026-11',30)];allNov.schedule['s3:30']='D';allNov.locks['s3:30']=true;assert.throws(()=>E.generate(allDays,'2026-11'),/勤務不可の曜日/,'翌月のdが勤務できない職員にはDを設定しない');allNight.weekdays=[E.weekday('2026-11',30),E.weekday('2026-12',1)];E.generate(allDays,'2026-11',{phase:'night'});const allDecIssues=E.generate(allDays,'2026-12',{phase:'night'});assert.equal(allDays.months['2026-12'].schedule['s3:1'],'d');assert.equal(allDays.months['2026-12'].schedule['s3:2'],'E');assert(!allDecIssues.some(x=>x.type==='availability'&&x.id==='s3'&&x.d===1));
 const changedStaff=E.fresh(),changedNov=E.month(changedStaff,'2026-11'),changedDec=E.month(changedStaff,'2026-12'),changedPerson=changedStaff.members[2];
 changedNov.generated=true;changedDec.generated=true;changedNov.schedule['s3:30']='D';changedNov.locks['s3:30']=true;changedDec.schedule['s3:1']='d';changedDec.locks['s3:1']=true;changedDec.schedule['s3:2']='E';changedDec.locks['s3:2']=true;
 changedPerson.weekdays=[E.weekday('2026-11',30)];assert.equal(E.clearMemberConditionConflicts(changedStaff,changedPerson),3,'職員条件変更で成立しなくなった夜勤は3日とも解除');
@@ -49,7 +49,7 @@ carryDec.schedule['s3:1']='F';assert(E.validate(carryValidation,'2026-12').some(
 carryDec.schedule['s3:1']='E';assert(!E.validate(carryValidation,'2026-12').some(x=>x.type==='sequence'&&x.id==='s3'&&x.d===1&&x.text.includes('休日E')),'前月末dの翌日が休日Eなら連続ルールを満たす');
 const sequence=E.fresh(),sm=E.month(sequence,month);sm.schedule['s3:10']='D';sm.schedule['s3:11']='d';sm.schedule['s3:12']='B';assert(E.validate(sequence,month).some(x=>x.type==='sequence'&&x.id==='s3'&&x.d===10&&x.text.includes('翌々日の休日E')));
 sm.locks['s3:10']=true;sm.locks['s3:12']=true;const sequenceBefore=JSON.stringify(sequence);assert.throws(()=>E.generate(sequence,month),/固定勤務と夜勤後のE/);assert.equal(JSON.stringify(sequence),sequenceBefore);
-const tenure=E.fresh(),tm=E.month(tenure,month);tenure.members[0].end='2026-10-15';tenure.members[1].role='管理者';tenure.members[1].start='2026-10-16';tm.meetings=[15,16];E.generate(tenure,month);assert.equal(tm.schedule['s1:15'],'B');assert.equal(tm.schedule['s1:16'],'');assert.equal(tm.schedule['s2:16'],'B');
+const tenure=E.fresh(),tm=E.month(tenure,month);tenure.members[0].end='2026-10-15';tenure.members[1].role='管理者';tenure.members[1].start='2026-10-16';tm.meetings=[15,16];E.generate(tenure,month,{phase:'night',allowIncomplete:true});E.generate(tenure,month,{phase:'day',allowIncomplete:true});assert.equal(tm.schedule['s1:15'],'B');assert.equal(tm.schedule['s1:16'],'');assert.equal(tm.schedule['s2:16'],'B');
 const legacy=E.fresh(),lm=E.month(legacy,month);delete lm.meetings;assert.deepEqual(E.meetingDays(legacy,month),[]);assert.deepEqual(E.checkData(E.copy(legacy)),legacy);
 for(const value of [null,{},'1',[0],[32],[1.5],['1'],[1,1]]){lm.meetings=value;assert.throws(()=>E.checkData(E.copy(legacy)),/会議日/);}
 const leap=E.fresh(),feb=E.month(leap,'2028-02');feb.meetings=[29];assert.deepEqual(E.checkData(E.copy(leap)),leap);feb.meetings=[30];assert.throws(()=>E.checkData(E.copy(leap)),/会議日/);

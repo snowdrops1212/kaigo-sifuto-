@@ -32,4 +32,10 @@ for(const pendingStage of [undefined,'requests','night']){
  const pendingRows=output.replace(/^\ufeff/,'').split('\r\n');
  assert(pendingRows.some(row=>row.includes('換算判定')&&row.endsWith('"人数調整前","人数調整前"')),`${pendingStage||'白紙'}段階のCSVは画面と同じ保留表示`);
 }
+const withCustom={...context,state:{members:[{id:'s1',name:'職員',role:'介護職員'}]},k:(id,day)=>`${id}:${day}`};
+const record={generationStage:'day',schedule:{'s1:4':'B'},customTimes:{'s1:4':{code:'B',start:'09:00',end:'17:00',breakMinutes:60}}};
+withCustom.mo=()=>record;
+withCustom.E={...context.E,shiftHours:()=>7};
+vm.runInNewContext(source.slice(source.indexOf('function csvShiftCell'),end)+'\nexportCSV();',withCustom);
+ assert(output.includes('B 09:00〜17:00 実働7時間'),'時間指定勤務の時刻と実働をCSVに出す');
 console.log('PASS: CSV equivalent legend and daily thresholds match the schedule view');

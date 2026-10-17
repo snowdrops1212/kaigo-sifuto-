@@ -3,6 +3,7 @@
 function download(name,data,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
 function printSchedule(){window.print();}
 $('#staff-history').onclick=showStaffHistory;
+ function csvShiftCell(record,id,day){const cell=k(id,day),code=record.schedule[cell]||'',entry=record.customTimes?.[cell];return entry?.code===code?`${code} ${entry.start}〜${entry.end} 実働${E.shiftHours(record,cell,code)}時間`:code;}
 function exportCSV(){
  const safe=x=>'"'+String(x??'').replace(/^[=+@-]/,"'$&").replaceAll('"','""')+'"';
  const equivalents=E.dailyEquivalent(state,current);
@@ -10,7 +11,7 @@ function exportCSV(){
  const pending=!['day','all'].includes(mo().generationStage);
  const rows=[
   ['氏名','職種',...range().map(d=>`${d}日`)],
-   ...state.members.map(p=>[p.name,p.role,...range().map(d=>mo().schedule[k(p.id,d)]||'')]),
+   ...state.members.map(p=>[p.name,p.role,...range().map(d=>csvShiftCell(mo(),p.id,d))]),
   [],
   ['勤務別人数','',...range().map(d=>`${d}日`)],
   ...[...Object.keys(E.shifts),'blank'].map(c=>[c==='blank'?'未入力':c,'人数',...E.dailyCounts(state,current).map(r=>r.counts[c])]),

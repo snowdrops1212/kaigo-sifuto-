@@ -90,7 +90,7 @@ function persistState({staffEdit=false,expectedRevision=staffRevision}={}){
 function applyMemberConditions(data){return data.members.reduce((total,p)=>total+E.clearMemberConditionConflicts(data,p),0);}
 let state=loadPersistedState(),current='2026-10',tab='schedule',undo=[],redo=[],dirty=false;
 let requestPerson='',requestKind='E',requestShift='B',requestDate='',meetingDate='';
-let scheduleFit=true,scheduleExpanded=false,scheduleResizeObserver;
+let scheduleFit=true,scheduleExpanded=false,scheduleResizeObserver,scheduleZoomFactor=1;
 function initializeProtectedStaff(){if(!protectedStaff||storageBlocked||!editorOwnsLock)return;
  try{
   if(!protectedStaff.read()){
@@ -166,8 +166,10 @@ function removeLegacyNightLimits(){
 }
 function revert(forward){
  const from=forward?redo:undo,to=forward?undo:redo;if(!from.length)return;
- const before=E.copy(state),restored=from[from.length-1],staffEdit=JSON.stringify(protectedStaff?.snapshot(restored))!==JSON.stringify(protectedStaff?.snapshot(state));
- state=E.copy(restored);
+  const before=E.copy(state),restored=E.copy(from[from.length-1]);
+  for(const person of restored.members)if(person.employmentType==='full')person.targetMode='min';
+  const staffEdit=JSON.stringify(protectedStaff?.snapshot(restored))!==JSON.stringify(protectedStaff?.snapshot(state));
+  state=restored;
  if(!persistState({staffEdit})){state=before;toast(storageNotice);return;}
  from.pop();to.push(before);dirty=true;render();toast('変更を戻しました');
 }
@@ -203,6 +205,7 @@ function options(vals,selected){return vals.map(([v,l])=>`<option value="${esc(v
 function range(){return Array.from({length:n()},(_,i)=>i+1);}
 function weekHeaders(days=n()){return Array.from({length:Math.ceil(days/7)},(_,i)=>{const start=i*7+1,end=Math.min(days,start+6);return `<th class="week-group" colspan="${end-start+1}" scope="colgroup">${i+1}週目</th>`;}).join('');}
 function headerDays(){return range().map(d=>{const w=E.weekday(current,d);return `<th class="${w===0?'sunday':w===6?'saturday':''}">${d}<small>${'日月火水木金土'[w]}</small></th>`;}).join('');}
+function bottomCalendarRows(){return '<tr class="bottom-day-row"><th class="schedule-staff-heading" rowspan="2" scope="rowgroup">職員</th>'+headerDays()+'<th rowspan="2">合計時間 / 目安</th><th rowspan="2">夜勤</th><th rowspan="2">休日</th></tr><tr class="bottom-week-row">'+weekHeaders()+'</tr>';}
 function staffRow(p,paid=false){const limit=E.memberConditions(p).onlyShifts;return `<th${paid?' class="paid-person"':''}><span class="person-heading"><span class="person-identity"><span class="person-name" title="${esc(p.name+'／'+p.role)}">${esc(p.name)}</span><span class="person-role">${esc(p.role)}</span>${limit.length?'<small class="member-work-limit">勤務：'+esc(limit.join('・'))+'のみ</small>':''}</span>${paid?paidBadge(p):''}</span></th>`;}
 function undoBar(){return `<button id="undo" ${undo.length?'':'disabled'}>↶ 元に戻す</button><button id="redo" ${redo.length?'':'disabled'}>↷ やり直す</button>`;}
 function render(){mo();scheduleResizeObserver?.disconnect();if(tab!=='schedule'||!mo().generated)scheduleExpanded=false;document.body?.classList.toggle('schedule-expanded',scheduleExpanded);document.querySelectorAll('nav button').forEach(b=>{const active=b.dataset.tab===tab;b.classList.toggle('active',active);b.setAttribute('aria-current',active?'page':'false');b.setAttribute('aria-selected',String(active));b.tabIndex=active?0:-1;});if(tab==='members')renderMembers();else if(tab==='planning')renderPlanning();else renderSchedule();if($('#undo'))$('#undo').onclick=()=>revert(false);if($('#redo'))$('#redo').onclick=()=>revert(true);if(storageNotice)content.insertAdjacentHTML('afterbegin','<div class="note" role="alert">'+esc(storageNotice)+'</div>');content.inert=!editorOwnsLock;for(const selector of ['#save','#load']){const button=$(selector);if(button)button.disabled=!editorOwnsLock;}let banner=$('#editor-lock-banner');if(!banner&&typeof document.createElement==='function'&&typeof content.before==='function'){banner=document.createElement('div');banner.id='editor-lock-banner';banner.className='editor-lock-banner';banner.setAttribute('role','alert');content.before(banner);}if(banner){banner.hidden=editorOwnsLock;banner.innerHTML=editorOwnsLock?'':'<span>'+esc(editorLockMessage())+'</span>'+(editorLockStatus==='busy'?' <button type="button" id="take-editor-lock">このタブで編集</button>':'');const take=$('#take-editor-lock');if(take)take.onclick=beginEditorSession;}}
@@ -227,6 +230,6 @@ function syncPersistedState(event){
 }
 window.addEventListener('storage',syncPersistedState);
 // Changes are saved at the editing action. Closing or hiding a stale tab never writes staff.
-function equivalentNote(){return '<div class="equivalent-note"><strong>8時間換算：B・C・C\'・D・d・G・J・L・M・/C\'・I</strong><span>1人ずつ勤務時間÷8を小数第1位まで切り捨てて合計（8時間＝1.0、6時間＝0.7、7時間＝0.8）。E・F・/B・/C・空欄は対象外。</span><span>必要な合計は平日・土曜7.0以上、日曜6.0以上。未達の日は赤で表示します。</span></div>';}
-function equivalentFooter(extra){const pending=!['day','all'].includes(mo().generationStage);return '<tfoot><tr class="equivalent-row"><th scope="row">8時間換算 合計<small>B C C\' D d G J L M /C\' I</small></th>'+E.dailyEquivalent(state,current).map(r=>{const minimum=E.weekday(current,r.day)===0?60:70,failed=!pending&&r.tenths<minimum,status=pending?'人数調整前':failed?'基準未満':'基準クリア';return '<td class="'+(pending?'fte-pending':failed?'metric-issue':'fte-pass')+'" data-equivalent-day="'+r.day+'" aria-label="'+r.day+'日 8時間換算 '+r.value+' '+status+'" title="'+(pending?status:failed?'必要な'+(minimum/10).toFixed(1)+'未満':status)+'">'+r.value+'</td>';}).join('')+'<td colspan="'+extra+'">—</td></tr></tfoot>';}
+function equivalentNote(){return '<div class="equivalent-note"><strong>8時間換算：B・C・C\'・D・d・G・J・L・M・/C\'・I・T</strong><span>1人ずつ勤務時間÷8を小数第1位まで切り捨てて合計（8時間＝1.0、6時間＝0.7、7時間＝0.8）。時間指定勤務は実働時間を使用。E・F・/B・/C・空欄は対象外。</span><span>必要な合計は平日・土曜7.0以上、日曜6.0以上。未達の日は赤で表示します。</span></div>';}
+function equivalentFooter(extra){const pending=!['day','all'].includes(mo().generationStage);return '<tfoot><tr class="equivalent-row"><th scope="row">8時間換算 合計<small>B C C\' D d G J L M /C\' I</small></th>'+E.dailyEquivalent(state,current).map(r=>{const minimum=E.weekday(current,r.day)===0?60:70,failed=!pending&&r.tenths<minimum,status=pending?'人数調整前':failed?'基準未満':'基準クリア';return '<td class="'+(pending?'fte-pending':failed?'metric-issue':'fte-pass')+'" data-equivalent-day="'+r.day+'" aria-label="'+r.day+'日 8時間換算 '+r.value+' '+status+'" title="'+(pending?status:failed?'必要な'+(minimum/10).toFixed(1)+'未満':status)+'">'+r.value+'</td>';}).join('')+'<td colspan="'+extra+'">—</td></tr>'+bottomCalendarRows()+'</tfoot>';}
 function countsRows(){const rows=E.dailyCounts(state,current),codes=[...Object.keys(E.shifts),'blank'];return '<tbody class="daily-count-rows" id="daily-counts" aria-label="日別・勤務記号別の人数"><tr class="counts-heading"><th scope="row">勤務記号別 人数</th><td colspan="'+n()+'">各日の人数（人）</td><td colspan="3">月計（延べ）</td></tr>'+codes.map(c=>'<tr><th scope="row"><span class="chip '+chip(c)+'">'+(c==='blank'?'未入力':c+' '+E.shifts[c].label)+'</span></th>'+rows.map(r=>'<td data-count-code="'+c+'" data-count-day="'+r.day+'">'+r.counts[c]+'</td>').join('')+'<td class="count-total" colspan="3" data-count-total-code="'+c+'">'+rows.reduce((sum,r)=>sum+r.counts[c],0)+'</td></tr>').join('')+'</tbody>';}
